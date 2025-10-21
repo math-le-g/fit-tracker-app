@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
+import { View, ActivityIndicator, Text } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Text, View, ActivityIndicator } from 'react-native';
 import { initDatabase } from './src/database/database';
+import AppNavigator from './src/navigation/AppNavigator';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
@@ -9,7 +10,6 @@ export default function App() {
   useEffect(() => {
     async function prepare() {
       try {
-        // Initialiser la base de données
         await initDatabase();
         console.log('✅ App prête !');
       } catch (error) {
@@ -32,17 +32,9 @@ export default function App() {
   }
 
   return (
-    <View className="flex-1 items-center justify-center bg-primary-dark">
-      <Text className="text-2xl font-bold text-accent-cyan">
-        🏋️ FitTracker
-      </Text>
-      <Text className="text-white mt-2">
-        Base de données initialisée ! ✅
-      </Text>
-      <Text className="text-gray-400 mt-4">
-        57 exercices chargés 💪
-      </Text>
+    <>
+      <AppNavigator />
       <StatusBar style="light" />
-    </View>
+    </>
   );
 }
