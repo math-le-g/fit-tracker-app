@@ -109,8 +109,35 @@ export const initDatabase = async () => {
       );
     `);
 
+    // Table routines
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS routines (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        type TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Table routine_exercises (exercices d'une routine)
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS routine_exercises (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        routine_id INTEGER NOT NULL,
+        exercise_id INTEGER NOT NULL,
+        order_index INTEGER NOT NULL,
+        sets INTEGER DEFAULT 3,
+        rest_time INTEGER DEFAULT 90,
+        FOREIGN KEY(routine_id) REFERENCES routines(id),
+        FOREIGN KEY(exercise_id) REFERENCES exercises(id)
+      );
+    `);
+
     // Pré-charger les 57 exercices
     await loadDefaultExercises();
+
+    // Pré-charger les routines par défaut
+    await loadDefaultRoutines();
 
     console.log('✅ Base de données initialisée avec succès !');
   } catch (error) {
@@ -208,4 +235,103 @@ const loadDefaultExercises = async () => {
   }
 
   console.log('✅ 57 exercices chargés avec succès !');
+};
+
+// Pré-charger les routines par défaut
+const loadDefaultRoutines = async () => {
+  const count = await db.getFirstAsync('SELECT COUNT(*) as count FROM routines');
+  
+  if (count.count > 0) {
+    console.log('✅ Routines déjà chargées');
+    return;
+  }
+
+  // Routine PUSH
+  await db.runAsync(
+    'INSERT INTO routines (name, type) VALUES (?, ?)',
+    ['Push (Pectoraux/Épaules/Triceps)', 'push']
+  );
+  const pushId = (await db.getFirstAsync('SELECT last_insert_rowid() as id')).id;
+
+  // Exercices Push
+  const pushExercises = [
+    { exercise: 'Développé Couché', sets: 4, rest: 90 },
+    { exercise: 'Développé Incliné', sets: 3, rest: 90 },
+    { exercise: 'Écarté Haltères', sets: 3, rest: 50 },
+    { exercise: 'Élévations Latérales', sets: 4, rest: 50 },
+    { exercise: 'Extensions Poulie', sets: 3, rest: 50 }
+  ];
+
+  for (let i = 0; i < pushExercises.length; i++) {
+    const ex = pushExercises[i];
+    const exerciseId = (await db.getFirstAsync(
+      'SELECT id FROM exercises WHERE name = ?',
+      [ex.exercise]
+    )).id;
+
+    await db.runAsync(
+      'INSERT INTO routine_exercises (routine_id, exercise_id, order_index, sets, rest_time) VALUES (?, ?, ?, ?, ?)',
+      [pushId, exerciseId, i, ex.sets, ex.rest]
+    );
+  }
+
+  // Routine PULL
+  await db.runAsync(
+    'INSERT INTO routines (name, type) VALUES (?, ?)',
+    ['Pull (Dos/Biceps)', 'pull']
+  );
+  const pullId = (await db.getFirstAsync('SELECT last_insert_rowid() as id')).id;
+
+  const pullExercises = [
+    { exercise: 'Tractions', sets: 4, rest: 90 },
+    { exercise: 'Rowing Barre', sets: 4, rest: 90 },
+    { exercise: 'Tirage Vertical', sets: 3, rest: 60 },
+    { exercise: 'Tirage Horizontal', sets: 3, rest: 60 },
+    { exercise: 'Curl Barre', sets: 3, rest: 60 },
+    { exercise: 'Curl Marteau', sets: 3, rest: 60 }
+  ];
+
+  for (let i = 0; i < pullExercises.length; i++) {
+    const ex = pullExercises[i];
+    const exerciseId = (await db.getFirstAsync(
+      'SELECT id FROM exercises WHERE name = ?',
+      [ex.exercise]
+    )).id;
+
+    await db.runAsync(
+      'INSERT INTO routine_exercises (routine_id, exercise_id, order_index, sets, rest_time) VALUES (?, ?, ?, ?, ?)',
+      [pullId, exerciseId, i, ex.sets, ex.rest]
+    );
+  }
+
+  // Routine LEGS
+  await db.runAsync(
+    'INSERT INTO routines (name, type) VALUES (?, ?)',
+    ['Legs (Jambes)', 'legs']
+  );
+  const legsId = (await db.getFirstAsync('SELECT last_insert_rowid() as id')).id;
+
+  const legsExercises = [
+    { exercise: 'Squat', sets: 4, rest: 120 },
+    { exercise: 'Presse à Cuisses', sets: 3, rest: 90 },
+    { exercise: 'Leg Extension', sets: 3, rest: 60 },
+    { exercise: 'Leg Curl', sets: 3, rest: 60 },
+    { exercise: 'Soulevé de Terre Roumain', sets: 3, rest: 90 },
+    { exercise: 'Mollets Debout', sets: 4, rest: 50 }
+  ];
+
+  for (let i = 0; i < legsExercises.length; i++) {
+    const ex = legsExercises[i];
+    const exerciseId = (await db.getFirstAsync(
+      'SELECT id FROM exercises WHERE name = ?',
+      [ex.exercise]
+    )).id;
+
+    await db.runAsync(
+      'INSERT INTO routine_exercises (routine_id, exercise_id, order_index, sets, rest_time) VALUES (?, ?, ?, ?, ?)',
+      [legsId, exerciseId, i, ex.sets, ex.rest]
+    );
+  }
+
+  console.log('✅ 3 routines par défaut chargées (Push/Pull/Legs)');
 };
