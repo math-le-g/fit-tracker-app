@@ -7,7 +7,11 @@ import WarmupScreen from './WarmupScreen';
 import WarmupTransitionScreen from './WarmupTransitionScreen';
 import WorkoutSessionScreen from './WorkoutSessionScreen';
 import WorkoutSummaryScreen from './WorkoutSummaryScreen';
-
+import LogRunScreen from './LogRunScreen';
+import SelectRouteScreen from './SelectRouteScreen';
+import CreateRouteScreen from './CreateRouteScreen';
+import RunConfirmationScreen from './RunConfirmationScreen';
+import RouteHistoryScreen from './RouteHistoryScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -104,6 +108,34 @@ export default function TrainingScreen() {
           title: 'Séance terminée',
           headerLeft: () => null, // Empêcher le retour
         }}
+      />
+      <Stack.Screen
+        name="LogRun"
+        component={LogRunScreen}
+        options={{ title: 'Enregistrer une course' }}
+      />
+      <Stack.Screen
+        name="SelectRoute"
+        component={SelectRouteScreen}
+        options={{ title: 'Sélectionner un parcours' }}
+      />
+      <Stack.Screen
+        name="CreateRoute"
+        component={CreateRouteScreen}
+        options={{ title: 'Nouveau parcours' }}
+      />
+      <Stack.Screen
+        name="RunConfirmation"
+        component={RunConfirmationScreen}
+        options={{
+          title: 'Course enregistrée',
+          headerLeft: () => null,
+        }}
+      />
+      <Stack.Screen
+        name="RouteHistory"
+        component={RouteHistoryScreen}
+        options={{ title: 'Historique parcours' }}
       />
     </Stack.Navigator>
   );

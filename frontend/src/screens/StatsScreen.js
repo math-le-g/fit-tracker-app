@@ -1,10 +1,32 @@
-import { View, Text } from 'react-native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import StatsOverviewScreen from './StatsOverviewScreen'; // ← CETTE LIGNE EST IMPORTANTE
+import HeatmapScreen from './HeatmapScreen';
+
+const Stack = createNativeStackNavigator();
 
 export default function StatsScreen() {
   return (
-    <View className="flex-1 bg-primary-dark items-center justify-center">
-      <Text className="text-white text-2xl font-bold">📊 Statistiques</Text>
-      <Text className="text-gray-400 mt-2">À venir...</Text>
-    </View>
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#1a1f3a',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
+      <Stack.Screen 
+        name="StatsOverview" 
+        component={StatsOverviewScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="Heatmap" 
+        component={HeatmapScreen}
+        options={{ title: 'Calendrier' }}
+      />
+    </Stack.Navigator>
   );
 }

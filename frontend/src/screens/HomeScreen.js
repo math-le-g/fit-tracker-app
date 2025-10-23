@@ -133,7 +133,9 @@ export default function HomeScreen({ navigation }) {
 
           <TouchableOpacity
             className="bg-accent-purple rounded-2xl p-4 items-center"
-            onPress={() => navigation.navigate('Entraînement')}
+            onPress={() => navigation.navigate('Entraînement', {
+              screen: 'LogRun'
+            })}
           >
             <View className="flex-row items-center">
               <Ionicons name="walk" size={24} color="#ffffff" />
