@@ -20,7 +20,7 @@ export default function StatsOverviewScreen({ navigation }) {
 
       const now = new Date();
       let startDate = new Date();
-      
+
       if (period === 'week') {
         startDate.setDate(now.getDate() - 7);
       } else if (period === 'month') {
@@ -226,13 +226,48 @@ export default function StatsOverviewScreen({ navigation }) {
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity className="bg-primary-navy rounded-2xl p-4">
+        <TouchableOpacity
+          className="bg-primary-navy rounded-2xl p-4"
+          onPress={() => navigation.navigate('ProgressAnalysis')}
+        >
           <View className="flex-row items-center justify-center">
-            <Ionicons name="analytics" size={20} color="#6b7280" />
-            <Text className="text-gray-400 font-semibold ml-2">Analyse détaillée (à venir)</Text>
+            <Ionicons name="analytics" size={20} color="#00f5ff" />
+            <Text className="text-accent-cyan font-semibold ml-2">
+              📊 Analyse de progression
+            </Text>
           </View>
         </TouchableOpacity>
       </View>
+      {/* Liste exercices */}
+      <TouchableOpacity
+        className="bg-primary-navy rounded-2xl p-4 mb-6"
+        onPress={async () => {
+          // Charger les exercices pratiqués
+          try {
+            const exercises = await db.getAllAsync(`
+        SELECT DISTINCT e.id, e.name, COUNT(s.id) as total_sets
+        FROM exercises e
+        JOIN sets s ON e.id = s.exercise_id
+        GROUP BY e.id
+        ORDER BY total_sets DESC
+        LIMIT 10
+      `);
+
+            if (exercises.length > 0) {
+              navigation.navigate('ExerciseList', { exercises });
+            }
+          } catch (error) {
+            console.error('Erreur:', error);
+          }
+        }}
+      >
+        <View className="flex-row items-center justify-center">
+          <Ionicons name="fitness" size={20} color="#6b7280" />
+          <Text className="text-gray-400 font-semibold ml-2">
+            📈 Voir mes exercices
+          </Text>
+        </View>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
