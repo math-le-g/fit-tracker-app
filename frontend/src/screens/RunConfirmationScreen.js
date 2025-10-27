@@ -3,11 +3,13 @@ import { useEffect, useState } from 'react';
 import { db } from '../database/database';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { checkAndUnlockBadges } from '../utils/badgeSystem';
 
 export default function RunConfirmationScreen({ route, navigation }) {
   const { distance, duration, pace, route: selectedRoute } = route.params;
   const [lastRun, setLastRun] = useState(null);
   const [isNewRecord, setIsNewRecord] = useState(false);
+  const [newBadges, setNewBadges] = useState([]);
 
   useEffect(() => {
     saveRun();
@@ -22,7 +24,7 @@ export default function RunConfirmationScreen({ route, navigation }) {
           'SELECT * FROM runs WHERE route_id = ? ORDER BY date DESC LIMIT 1',
           [selectedRoute.id]
         );
-        
+
         if (lastRunOnRoute) {
           setLastRun(lastRunOnRoute);
           // Vérifier si c'est un record (meilleure allure)
@@ -44,6 +46,13 @@ export default function RunConfirmationScreen({ route, navigation }) {
       console.log('✅ Course enregistrée:', distance, 'km en', formatDuration(duration));
     } catch (error) {
       console.error('Erreur enregistrement course:', error);
+    }
+
+    // Vérifier les badges
+    const unlockedBadges = await checkAndUnlockBadges();
+    if (unlockedBadges.length > 0) {
+      setNewBadges(unlockedBadges);
+      console.log('🏆 Nouveaux badges:', unlockedBadges);
     }
   };
 
@@ -131,18 +140,16 @@ export default function RunConfirmationScreen({ route, navigation }) {
 
         {/* Comparaison avec dernière fois */}
         {comparison && (
-          <View className={`rounded-2xl p-6 mb-6 border ${
-            comparison.improved ? 'bg-success/10 border-success' : 'bg-primary-navy border-primary-dark'
-          }`}>
+          <View className={`rounded-2xl p-6 mb-6 border ${comparison.improved ? 'bg-success/10 border-success' : 'bg-primary-navy border-primary-dark'
+            }`}>
             <View className="flex-row items-center mb-4">
-              <Ionicons 
-                name={comparison.improved ? "trending-up" : "remove"} 
-                size={24} 
-                color={comparison.improved ? "#00ff88" : "#6b7280"} 
+              <Ionicons
+                name={comparison.improved ? "trending-up" : "remove"}
+                size={24}
+                color={comparison.improved ? "#00ff88" : "#6b7280"}
               />
-              <Text className={`text-lg font-bold ml-2 ${
-                comparison.improved ? 'text-success' : 'text-white'
-              }`}>
+              <Text className={`text-lg font-bold ml-2 ${comparison.improved ? 'text-success' : 'text-white'
+                }`}>
                 📊 COMPARAISON CE PARCOURS
               </Text>
             </View>
@@ -162,9 +169,8 @@ export default function RunConfirmationScreen({ route, navigation }) {
             </View>
 
             <View className="pt-3 border-t border-primary-dark">
-              <Text className={`font-bold ${
-                comparison.improved ? 'text-success' : 'text-gray-400'
-              }`}>
+              <Text className={`font-bold ${comparison.improved ? 'text-success' : 'text-gray-400'
+                }`}>
                 📈 PROGRESSION
               </Text>
               <Text className={comparison.improved ? 'text-success' : 'text-gray-400'}>
@@ -196,6 +202,30 @@ export default function RunConfirmationScreen({ route, navigation }) {
             <Text className="text-white mt-4 text-center font-bold">
               ⭐ +5 XP BONUS
             </Text>
+          </View>
+        )}
+
+        {/* Nouveaux badges */}
+        {newBadges.length > 0 && (
+          <View className="bg-accent-cyan/10 rounded-2xl p-6 mb-6 border border-accent-cyan">
+            <View className="flex-row items-center mb-4">
+              <Ionicons name="trophy" size={24} color="#00f5ff" />
+              <Text className="text-accent-cyan text-xl font-bold ml-2">
+                🏆 NOUVEAUX BADGES !
+              </Text>
+            </View>
+
+            {newBadges.map((badge, index) => (
+              <View key={index} className="flex-row items-center mb-3 bg-primary-navy rounded-xl p-3">
+                <View className="w-12 h-12 bg-accent-cyan rounded-full items-center justify-center mr-3">
+                  <Text className="text-3xl">{badge.icon}</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-white font-bold">{badge.name}</Text>
+                  <Text className="text-gray-400 text-sm">{badge.description}</Text>
+                </View>
+              </View>
+            ))}
           </View>
         )}
 

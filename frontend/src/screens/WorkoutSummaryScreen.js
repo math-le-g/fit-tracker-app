@@ -3,17 +3,20 @@ import { useEffect, useState } from 'react';
 import { db } from '../database/database';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { checkAndUnlockBadges } from '../utils/badgeSystem';
 
 export default function WorkoutSummaryScreen({ route, navigation }) {
   const { workoutId, warmupDuration, workoutDuration, totalSets, totalVolume, xpGained } = route.params;
   const [workoutDetails, setWorkoutDetails] = useState([]);
   const [records, setRecords] = useState([]);
+  const [newBadges, setNewBadges] = useState([]);
 
   useEffect(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     loadWorkoutDetails();
     checkForRecords();
     updateUserXP();
+    checkBadges();
   }, []);
 
   const loadWorkoutDetails = async () => {
@@ -75,6 +78,14 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
       grouped[detail.name].push(detail);
     });
     return grouped;
+  };
+
+  const checkBadges = async () => {
+    const unlockedBadges = await checkAndUnlockBadges();
+    if (unlockedBadges.length > 0) {
+      setNewBadges(unlockedBadges);
+      console.log('🏆 Nouveaux badges débloqués:', unlockedBadges);
+    }
   };
 
   return (
@@ -165,6 +176,31 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
           </View>
         )}
 
+        {/* Nouveaux badges */}
+        {newBadges.length > 0 && (
+          <View className="bg-accent-cyan/10 rounded-2xl p-6 mb-6 border border-accent-cyan">
+            <View className="flex-row items-center mb-4">
+              <Ionicons name="trophy" size={24} color="#00f5ff" />
+              <Text className="text-accent-cyan text-xl font-bold ml-2">
+                🏆 NOUVEAUX BADGES !
+              </Text>
+            </View>
+
+            {newBadges.map((badge, index) => (
+              <View key={index} className="flex-row items-center mb-3 bg-primary-navy rounded-xl p-3">
+                <View className="w-12 h-12 bg-accent-cyan rounded-full items-center justify-center mr-3">
+                  <Text className="text-3xl">{badge.icon}</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-white font-bold">{badge.name}</Text>
+                  <Text className="text-gray-400 text-sm">{badge.description}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+
         {/* Détails exercices */}
         <View className="bg-primary-navy rounded-2xl p-6 mb-6">
           <Text className="text-white text-xl font-bold mb-4">
@@ -172,11 +208,10 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
           </Text>
 
           {Object.entries(groupByExercise()).map(([exerciseName, sets], index) => (
-            <View 
+            <View
               key={index}
-              className={`py-3 ${
-                index < Object.keys(groupByExercise()).length - 1 ? 'border-b border-primary-dark' : ''
-              }`}
+              className={`py-3 ${index < Object.keys(groupByExercise()).length - 1 ? 'border-b border-primary-dark' : ''
+                }`}
             >
               <Text className="text-white font-semibold mb-2">
                 {exerciseName}
@@ -207,7 +242,7 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
 
         <TouchableOpacity
           className="bg-primary-navy rounded-2xl p-4"
-          onPress={() => {/* TODO: Partager */}}
+          onPress={() => {/* TODO: Partager */ }}
         >
           <View className="flex-row items-center justify-center">
             <Ionicons name="share-social" size={20} color="#6b7280" />

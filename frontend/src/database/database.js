@@ -99,15 +99,59 @@ export const initDatabase = async () => {
       );
     `);
 
-    // Table badges
+    // Table badges - SUPPRIMER L'ANCIENNE ET RECRÉER
+
     await db.execAsync(`
-      CREATE TABLE IF NOT EXISTS badges (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        badge_type TEXT NOT NULL,
-        unlocked_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        xp_reward INTEGER DEFAULT 0
-      );
-    `);
+  CREATE TABLE IF NOT EXISTS badges (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    icon TEXT NOT NULL,
+    category TEXT NOT NULL,
+    unlocked INTEGER DEFAULT 0,
+    unlocked_at TEXT,
+    progress INTEGER DEFAULT 0,
+    target INTEGER NOT NULL
+  );
+`);
+
+    // Insérer les badges
+    const badgeCount = await db.getFirstAsync('SELECT COUNT(*) as count FROM badges');
+    if (badgeCount.count === 0) {
+      await db.execAsync(`
+    INSERT INTO badges (code, name, description, icon, category, target) VALUES
+    ('first_workout', 'Première séance', 'Complète ta première séance', '🏋️', 'workout', 1),
+    ('workout_5', 'Warrior', '5 séances complétées', '💪', 'workout', 5),
+    ('workout_10', 'Athlète', '10 séances complétées', '🔥', 'workout', 10),
+    ('workout_25', 'Champion', '25 séances complétées', '🏆', 'workout', 25),
+    ('workout_50', 'Légende', '50 séances complétées', '👑', 'workout', 50),
+    ('workout_100', 'Immortel', '100 séances complétées', '⚡', 'workout', 100),
+    
+    ('first_run', 'Premier run', 'Première course', '🏃', 'run', 1),
+    ('run_10', 'Runner', '10 courses', '🏃‍♂️', 'run', 10),
+    ('run_50', 'Marathon Man', '50 courses', '🎽', 'run', 50),
+    ('distance_50', '50 Kilomètres', 'Parcours 50km au total', '🎯', 'run', 50),
+    ('distance_100', 'Centurion', 'Parcours 100km au total', '💯', 'run', 100),
+    
+    ('streak_3', 'Régularité', '3 jours de suite', '🔥', 'streak', 3),
+    ('streak_7', 'Semaine parfaite', '7 jours de suite', '⭐', 'streak', 7),
+    ('streak_14', 'Bête de travail', '14 jours de suite', '💎', 'streak', 14),
+    ('streak_30', 'Invincible', '30 jours de suite', '👹', 'streak', 30),
+    
+    ('volume_1000', 'Powerlifter', '1000kg de volume', '🏋️‍♀️', 'volume', 1000),
+    ('volume_5000', 'Beast Mode', '5000kg de volume', '🦍', 'volume', 5000),
+    ('volume_10000', 'Titan', '10000kg de volume', '⚡', 'volume', 10000),
+    
+    ('pr_3', 'Record Breaker', '3 records personnels', '📈', 'progress', 3),
+    ('pr_10', 'Domination', '10 records personnels', '🚀', 'progress', 10),
+    
+    ('level_5', 'Niveau 5', 'Atteins le niveau 5', '⭐', 'level', 5),
+    ('level_10', 'Niveau 10', 'Atteins le niveau 10', '🌟', 'level', 10),
+    ('level_20', 'Niveau 20', 'Atteins le niveau 20', '✨', 'level', 20)
+  `);
+      console.log('✅ Badges créés');
+    }
 
     // Table routines
     await db.execAsync(`
@@ -148,7 +192,7 @@ export const initDatabase = async () => {
 // Pré-charger les 57 exercices
 const loadDefaultExercises = async () => {
   const count = await db.getFirstAsync('SELECT COUNT(*) as count FROM exercises');
-  
+
   if (count.count > 0) {
     console.log('✅ Exercices déjà chargés');
     return;
@@ -240,7 +284,7 @@ const loadDefaultExercises = async () => {
 // Pré-charger les routines par défaut
 const loadDefaultRoutines = async () => {
   const count = await db.getFirstAsync('SELECT COUNT(*) as count FROM routines');
-  
+
   if (count.count > 0) {
     console.log('✅ Routines déjà chargées');
     return;
