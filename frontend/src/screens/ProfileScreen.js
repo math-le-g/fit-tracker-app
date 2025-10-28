@@ -116,13 +116,13 @@ export default function ProfileScreen({ navigation }) {
         <View className="bg-gradient-to-r from-accent-cyan/20 to-accent-purple/20 rounded-2xl p-6 mb-6 border border-accent-cyan/30">
           <View className="flex-row items-center justify-between">
             <View>
-              <Text className="text-gray-400 text-sm mb-1">🔥 STREAK ACTUEL</Text>
+              <Text className="text-gray-400 text-sm mb-1"><Text>🔥</Text> STREAK ACTUEL</Text>
               <Text className="text-white text-3xl font-bold">
                 {user.streak} jours
               </Text>
             </View>
             <View className="items-end">
-              <Text className="text-gray-400 text-sm mb-1">🏆 RECORD</Text>
+              <Text className="text-gray-400 text-sm mb-1"><Text>🏆</Text> RECORD</Text>
               <Text className="text-accent-cyan text-3xl font-bold">
                 {user.best_streak}
               </Text>
@@ -132,7 +132,7 @@ export default function ProfileScreen({ navigation }) {
           {user.streak === user.best_streak && user.streak > 0 && (
             <View className="mt-4 pt-4 border-t border-accent-cyan/20">
               <Text className="text-accent-cyan text-center font-bold">
-                🏆 RECORD PERSONNEL EN COURS ! 🔥
+                <Text>🏆</Text> RECORD PERSONNEL EN COURS ! <Text>🔥</Text>
               </Text>
             </View>
           )}
@@ -141,7 +141,7 @@ export default function ProfileScreen({ navigation }) {
         {/* Stats globales */}
         <View className="bg-primary-navy rounded-2xl p-6 mb-6">
           <Text className="text-white text-xl font-bold mb-4">
-            📊 STATISTIQUES
+            <Text>📊</Text> STATISTIQUES
           </Text>
 
           <View className="space-y-3">
@@ -192,7 +192,7 @@ export default function ProfileScreen({ navigation }) {
             <View className="flex-row items-center">
               <Ionicons name="trophy" size={24} color="#00f5ff" />
               <Text className="text-white text-xl font-bold ml-2">
-                🏆 BADGES
+                <Text>🏆</Text> BADGES
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color="#6b7280" />

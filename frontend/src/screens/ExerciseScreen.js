@@ -205,7 +205,9 @@ export default function ExerciseScreen({
         {/* Dernière performance */}
         {lastPerformance && (
           <View className="bg-primary-navy rounded-2xl p-4 mb-4">
-            <Text className="text-gray-400 text-sm mb-2">📊 DERNIÈRE FOIS</Text>
+            <Text className="text-gray-400 text-sm mb-2">
+              <Text>📊 DERNIÈRE FOIS</Text>
+              </Text>
             <Text className="text-white font-semibold">
               {lastPerformance[0].weight}kg × {lastPerformance[0].reps} reps
             </Text>
@@ -218,7 +220,7 @@ export default function ExerciseScreen({
             <View className="flex-row items-center mb-3">
               <Ionicons name="bulb" size={20} color="#00f5ff" />
               <Text className="text-accent-cyan text-sm font-bold ml-2">
-                🎯 SUGGESTION
+                <Text>🎯 SUGGESTION</Text>
               </Text>
             </View>
 
@@ -266,7 +268,7 @@ export default function ExerciseScreen({
             className="flex-1 bg-primary-navy rounded-xl p-3"
           >
             <Text className="text-gray-400 text-center font-semibold">
-              📝 Note
+              <Text>📝 Note</Text>
             </Text>
           </TouchableOpacity>
         </View>

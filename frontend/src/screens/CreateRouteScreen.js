@@ -29,7 +29,7 @@ export default function CreateRouteScreen({ route, navigation }) {
       };
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      
+
       navigation.navigate('LogRun', { selectedRoute: newRoute });
     } catch (error) {
       console.error('Erreur création parcours:', error);
@@ -49,7 +49,7 @@ export default function CreateRouteScreen({ route, navigation }) {
     <ScrollView className="flex-1 bg-primary-dark">
       <View className="p-6">
         <Text className="text-white text-2xl font-bold mb-2">
-          ➕ Nouveau parcours
+          <Text>➕ </Text>Nouveau parcours
         </Text>
         <Text className="text-gray-400 mb-6">
           Crée un parcours pour retrouver tes courses facilement
@@ -87,22 +87,20 @@ export default function CreateRouteScreen({ route, navigation }) {
         {/* Terrain */}
         <View className="bg-primary-navy rounded-2xl p-4 mb-6">
           <Text className="text-gray-400 text-sm mb-3">TYPE DE TERRAIN</Text>
-          
+
           <View className="flex-row gap-2">
             {terrainOptions.map((t) => (
               <TouchableOpacity
                 key={t}
-                className={`flex-1 rounded-xl p-3 ${
-                  terrain === t ? 'bg-accent-cyan' : 'bg-primary-dark'
-                }`}
+                className={`flex-1 rounded-xl p-3 ${terrain === t ? 'bg-accent-cyan' : 'bg-primary-dark'
+                  }`}
                 onPress={() => {
                   setTerrain(t);
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
               >
-                <Text className={`text-center font-bold ${
-                  terrain === t ? 'text-primary-dark' : 'text-gray-400'
-                }`}>
+                <Text className={`text-center font-bold ${terrain === t ? 'text-primary-dark' : 'text-gray-400'
+                  }`}>
                   {getTerrainIcon(t)} {t}
                 </Text>
               </TouchableOpacity>
@@ -125,17 +123,15 @@ export default function CreateRouteScreen({ route, navigation }) {
 
         {/* Bouton créer */}
         <TouchableOpacity
-          className={`rounded-2xl p-5 ${
-            name.trim() ? 'bg-accent-cyan' : 'bg-gray-700'
-          }`}
+          className={`rounded-2xl p-5 ${name.trim() ? 'bg-accent-cyan' : 'bg-gray-700'
+            }`}
           onPress={handleCreate}
           disabled={!name.trim()}
         >
           <View className="flex-row items-center justify-center">
             <Ionicons name="checkmark-circle" size={28} color={name.trim() ? "#0a0e27" : "#6b7280"} />
-            <Text className={`text-xl font-bold ml-2 ${
-              name.trim() ? 'text-primary-dark' : 'text-gray-500'
-            }`}>
+            <Text className={`text-xl font-bold ml-2 ${name.trim() ? 'text-primary-dark' : 'text-gray-500'
+              }`}>
               ✓ CRÉER
             </Text>
           </View>

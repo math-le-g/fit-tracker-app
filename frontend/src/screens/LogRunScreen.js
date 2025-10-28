@@ -153,7 +153,7 @@ export default function LogRunScreen({ route, navigation }) {
 
                 {/* Temps */}
                 <View className="bg-primary-navy rounded-2xl p-6 mb-4">
-                    <Text className="text-gray-400 text-sm mb-3">⏱️ TEMPS</Text>
+                    <Text className="text-gray-400 text-sm mb-3"><Text>⏱️</Text> TEMPS</Text>
 
                     <View className="flex-row items-center justify-center gap-2">
                         {/* Minutes */}
@@ -219,7 +219,7 @@ export default function LogRunScreen({ route, navigation }) {
                 {/* Allure calculée */}
                 <View className="bg-accent-purple/10 rounded-2xl p-6 mb-4 border border-accent-purple/20">
                     <View className="flex-row items-center justify-between">
-                        <Text className="text-gray-400">⚡ ALLURE CALCULÉE</Text>
+                        <Text className="text-gray-400"><Text>⚡</Text> ALLURE CALCULÉE</Text>
                         <Text className="text-accent-purple text-3xl font-bold">
                             {calculatePace()} <Text className="text-lg">/km</Text>
                         </Text>
@@ -236,7 +236,7 @@ export default function LogRunScreen({ route, navigation }) {
                 >
                     <View className="flex-row items-center justify-between">
                         <View className="flex-1">
-                            <Text className="text-gray-400 text-sm mb-1">📍 PARCOURS (optionnel)</Text>
+                            <Text className="text-gray-400 text-sm mb-1"><Text>📍</Text> PARCOURS (optionnel)</Text>
                             <Text className="text-white font-semibold">
                                 {selectedRoute ? selectedRoute.name : 'Aucun parcours sélectionné'}
                             </Text>

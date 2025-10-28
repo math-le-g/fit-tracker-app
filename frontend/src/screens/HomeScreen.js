@@ -40,7 +40,7 @@ export default function HomeScreen({ navigation }) {
       <View className="p-6">
         {/* Message de bienvenue */}
         <Text className="text-3xl font-bold text-white mb-2">
-          Bonjour ! 👋
+          Bonjour ! <Text>👋</Text>
         </Text>
 
         {/* Streak + Niveau + XP */}
@@ -86,14 +86,14 @@ export default function HomeScreen({ navigation }) {
             <Text className="text-white text-xl font-bold">EXCELLENT FORME</Text>
           </View>
           <Text className="text-gray-400">
-            Continue comme ça ! 💪
+            Continue comme ça ! <Text>💪</Text>
           </Text>
         </View>
 
         {/* Dernière séance */}
         {lastWorkout ? (
           <View className="bg-primary-navy rounded-2xl p-4 mb-6 border border-accent-purple/20">
-            <Text className="text-gray-400 text-sm mb-2">📅 DERNIÈRE SÉANCE</Text>
+            <Text className="text-gray-400 text-sm mb-2"><Text>📅</Text> DERNIÈRE SÉANCE</Text>
             <View className="flex-row items-center justify-between">
               <View>
                 <Text className="text-white text-lg font-bold">
@@ -112,7 +112,7 @@ export default function HomeScreen({ navigation }) {
               Aucune séance enregistrée
             </Text>
             <Text className="text-gray-500 text-center text-sm mt-1">
-              Commence ton premier entraînement ! 🚀
+              Commence ton premier entraînement ! <Text>🚀</Text>
             </Text>
           </View>
         )}

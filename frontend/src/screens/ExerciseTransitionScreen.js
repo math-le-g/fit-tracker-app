@@ -3,10 +3,10 @@ import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
-export default function ExerciseTransitionScreen({ 
-  completedExercise, 
+export default function ExerciseTransitionScreen({
+  completedExercise,
   completedSets,
-  nextExercise, 
+  nextExercise,
   exerciseNumber,
   totalExercises,
   workoutStartTime,
@@ -44,7 +44,7 @@ export default function ExerciseTransitionScreen({
             <Ionicons name="checkmark-circle" size={64} color="#00ff88" />
           </View>
           <Text className="text-white text-2xl font-bold mb-2">
-            ✅ EXERCICE TERMINÉ !
+            <Text>✅ </Text>EXERCICE TERMINÉ !
           </Text>
           <Text className="text-gray-400 text-lg">
             {completedExercise.name}
@@ -54,9 +54,9 @@ export default function ExerciseTransitionScreen({
         {/* Récap exercice */}
         <View className="bg-primary-navy rounded-2xl p-6 mb-4">
           <Text className="text-white text-lg font-bold mb-3">
-            📊 Performance
+            <Text>📊 </Text> Performance
           </Text>
-          
+
           {completedSets.map((set, index) => (
             <View key={index} className="flex-row justify-between mb-2">
               <Text className="text-gray-400">Série {index + 1}</Text>
@@ -82,7 +82,7 @@ export default function ExerciseTransitionScreen({
             <Ionicons name="time-outline" size={20} color="#00f5ff" />
             <View className="flex-1 ml-3">
               <Text className="text-accent-cyan font-semibold mb-1">
-                💡 Prends ton temps
+                <Text>💡 </Text> Prends ton temps
               </Text>
               <Text className="text-gray-400 text-sm">
                 Range tes poids, change de machine et prépare le prochain exercice
@@ -128,7 +128,7 @@ export default function ExerciseTransitionScreen({
               <View className="flex-row items-center justify-center">
                 <Ionicons name="play" size={24} color="#0a0e27" />
                 <Text className="text-primary-dark text-lg font-bold ml-2">
-                  🚀 COMMENCER
+                  <Text>🚀 </Text>COMMENCER
                 </Text>
               </View>
             </TouchableOpacity>
@@ -138,7 +138,7 @@ export default function ExerciseTransitionScreen({
         {/* Timer séance */}
         <View className="items-center mt-4 mb-6">
           <Text className="text-gray-400 text-center">
-            ⏱️ Temps total : {formatTime(elapsedTime)}
+            <Text>⏱️</Text> Temps total : {formatTime(elapsedTime)}
           </Text>
         </View>
       </View>

@@ -12,6 +12,8 @@ import SelectRouteScreen from './SelectRouteScreen';
 import CreateRouteScreen from './CreateRouteScreen';
 import RunConfirmationScreen from './RunConfirmationScreen';
 import RouteHistoryScreen from './RouteHistoryScreen';
+import CreateRoutineScreen from './CreateRoutineScreen';
+import EditRoutineScreen from './EditRoutineScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -136,6 +138,16 @@ export default function TrainingScreen() {
         name="RouteHistory"
         component={RouteHistoryScreen}
         options={{ title: 'Historique parcours' }}
+      />
+      <Stack.Screen
+        name="CreateRoutine"
+        component={CreateRoutineScreen}
+        options={{ title: 'Créer une routine' }}
+      />
+      <Stack.Screen
+        name="EditRoutine"
+        component={EditRoutineScreen}
+        options={{ title: 'Modifier la routine' }}
       />
     </Stack.Navigator>
   );

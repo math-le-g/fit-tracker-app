@@ -183,7 +183,7 @@ export default function ExerciseDetailScreen({ route }) {
                 {/* Graphique */}
                 <View className="bg-primary-navy rounded-2xl p-4 mb-6">
                     <Text className="text-white text-lg font-bold mb-4">
-                        📈 ÉVOLUTION CHARGE MAX
+                        <Text>📈 </Text>ÉVOLUTION CHARGE MAX
                     </Text>
 
                     <LineChart

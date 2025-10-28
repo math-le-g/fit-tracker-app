@@ -1,19 +1,23 @@
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { db } from '../database/database';
 import { Ionicons } from '@expo/vector-icons';
+import { Alert } from 'react-native';
 
 export default function RoutineListScreen({ navigation }) {
   const [routines, setRoutines] = useState([]);
 
-  useEffect(() => {
+  useFocusEffect(
+  useCallback(() => {
     loadRoutines();
-  }, []);
+  }, [])
+);
 
   const loadRoutines = async () => {
     try {
       const allRoutines = await db.getAllAsync('SELECT * FROM routines ORDER BY id ASC');
-      
+
       // Pour chaque routine, charger les exercices
       const routinesWithExercises = await Promise.all(
         allRoutines.map(async (routine) => {
@@ -75,13 +79,52 @@ export default function RoutineListScreen({ navigation }) {
             key={routine.id}
             className="bg-primary-navy rounded-2xl p-4 mb-4 border border-accent-cyan/20"
             onPress={() => navigation.navigate('RoutineDetail', { routineId: routine.id })}
+            onLongPress={() => {
+              Alert.alert(
+                routine.name,
+                'Que veux-tu faire ?',
+                [
+                  {
+                    text: 'Modifier',
+                    onPress: () => navigation.navigate('EditRoutine', { routineId: routine.id })
+                  },
+                  {
+                    text: 'Supprimer',
+                    style: 'destructive',
+                    onPress: () => {
+                      Alert.alert(
+                        'Confirmer',
+                        'Supprimer cette routine ?',
+                        [
+                          { text: 'Annuler', style: 'cancel' },
+                          {
+                            text: 'Supprimer',
+                            style: 'destructive',
+                            onPress: async () => {
+                              try {
+                                await db.runAsync('DELETE FROM routine_exercises WHERE routine_id = ?', [routine.id]);
+                                await db.runAsync('DELETE FROM routines WHERE id = ?', [routine.id]);
+                                loadRoutines();
+                              } catch (error) {
+                                console.error('Erreur suppression:', error);
+                              }
+                            }
+                          }
+                        ]
+                      );
+                    }
+                  },
+                  { text: 'Annuler', style: 'cancel' }
+                ]
+              );
+            }}
           >
             <View className="flex-row items-center mb-3">
               <View className={`${getRoutineColor(routine.type)} rounded-full p-2 mr-3`}>
-                <Ionicons 
-                  name={getRoutineIcon(routine.type)} 
-                  size={24} 
-                  color="#0a0e27" 
+                <Ionicons
+                  name={getRoutineIcon(routine.type)}
+                  size={24}
+                  color="#0a0e27"
                 />
               </View>
               <View className="flex-1">
@@ -120,7 +163,7 @@ export default function RoutineListScreen({ navigation }) {
 
         <TouchableOpacity
           className="bg-primary-navy rounded-2xl p-4 border-2 border-dashed border-gray-700 items-center"
-          onPress={() => {/* TODO: Créer routine */}}
+          onPress={() => navigation.navigate('CreateRoutine')}
         >
           <Ionicons name="add-circle-outline" size={32} color="#6b7280" />
           <Text className="text-gray-400 mt-2 font-semibold">

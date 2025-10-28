@@ -18,10 +18,9 @@ export default function SelectRouteScreen({ route, navigation }) {
       const allRoutes = await db.getAllAsync('SELECT * FROM routes ORDER BY created_at DESC');
       setRoutes(allRoutes);
 
-      // Détecter les parcours similaires (±0.5 km)
       if (distance > 0) {
-        const similar = allRoutes.filter(r => 
-          r.distance && Math.abs(r.distance - distance) <= 0.5
+        const similar = allRoutes.filter(
+          (r) => r.distance && Math.abs(r.distance - distance) <= 0.5
         );
         setSimilarRoutes(similar);
       }
@@ -37,10 +36,10 @@ export default function SelectRouteScreen({ route, navigation }) {
 
   const getTerrainIcon = (terrain) => {
     switch (terrain) {
-      case 'Plat': return '➡️';
-      case 'Vallonné': return '〰️';
-      case 'Montagne': return '⛰️';
-      default: return '📍';
+      case 'Plat': return <Text>➡️</Text>;
+      case 'Vallonné': return <Text>〰️</Text>;
+      case 'Montagne': return <Text>⛰️</Text>;
+      default: return <Text>📍</Text>;
     }
   };
 
@@ -48,8 +47,9 @@ export default function SelectRouteScreen({ route, navigation }) {
     <ScrollView className="flex-1 bg-primary-dark">
       <View className="p-6">
         <Text className="text-white text-2xl font-bold mb-2">
-          📍 Parcours
+          <Text>📍 </Text>Parcours
         </Text>
+
         <Text className="text-gray-400 mb-6">
           Sélectionne un parcours pour cette course
         </Text>
@@ -60,7 +60,7 @@ export default function SelectRouteScreen({ route, navigation }) {
             <View className="flex-row items-center mb-3">
               <Ionicons name="bulb" size={20} color="#00f5ff" />
               <Text className="text-accent-cyan text-sm font-bold ml-2">
-                💡 PARCOURS SIMILAIRES DÉTECTÉS
+                <Text>💡 </Text>PARCOURS SIMILAIRES DÉTECTÉS
               </Text>
             </View>
             <Text className="text-gray-400 text-sm mb-3">
@@ -76,7 +76,7 @@ export default function SelectRouteScreen({ route, navigation }) {
                 <View className="flex-row items-center justify-between mb-2">
                   <View className="flex-1">
                     <Text className="text-white text-lg font-bold">
-                      {getTerrainIcon(r.terrain)} {r.name}
+                      {getTerrainIcon(r.terrain)} <Text>{r.name}</Text>
                     </Text>
                     <Text className="text-gray-400 text-sm">
                       ~{r.distance} km • {r.terrain}
@@ -101,7 +101,7 @@ export default function SelectRouteScreen({ route, navigation }) {
         {routes.length > 0 && (
           <View className="mb-6">
             <Text className="text-white text-lg font-bold mb-3">
-              📂 TOUS LES PARCOURS
+              <Text>📂 </Text>TOUS LES PARCOURS
             </Text>
 
             {routes.map((r) => (
@@ -113,10 +113,11 @@ export default function SelectRouteScreen({ route, navigation }) {
                 <View className="flex-row items-center justify-between">
                   <View className="flex-1">
                     <Text className="text-white font-semibold">
-                      {getTerrainIcon(r.terrain)} {r.name}
+                      {getTerrainIcon(r.terrain)} <Text>{r.name}</Text>
                     </Text>
                     <Text className="text-gray-400 text-sm">
-                      {r.distance ? `~${r.distance} km • ` : ''}{r.terrain}
+                      {r.distance ? `~${r.distance} km • ` : ''}
+                      {r.terrain}
                     </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={20} color="#6b7280" />
@@ -134,7 +135,7 @@ export default function SelectRouteScreen({ route, navigation }) {
           <View className="flex-row items-center justify-center">
             <Ionicons name="add-circle" size={24} color="#0a0e27" />
             <Text className="text-primary-dark text-lg font-bold ml-2">
-              ➕ CRÉER UN NOUVEAU PARCOURS
+              <Text>➕ </Text>CRÉER UN NOUVEAU PARCOURS
             </Text>
           </View>
         </TouchableOpacity>

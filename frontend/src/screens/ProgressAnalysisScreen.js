@@ -178,7 +178,7 @@ export default function ProgressAnalysisScreen({ navigation }) {
       <ScrollView className="flex-1 bg-primary-dark">
         <View className="p-6">
           <Text className="text-white text-2xl font-bold mb-4">
-            📊 Analyse de progression
+            <Text>📊</Text> Analyse de progression
           </Text>
           <View className="bg-primary-navy rounded-2xl p-6">
             <Text className="text-gray-400 text-center">
@@ -199,7 +199,7 @@ export default function ProgressAnalysisScreen({ navigation }) {
     <ScrollView className="flex-1 bg-primary-dark">
       <View className="p-6">
         <Text className="text-white text-3xl font-bold mb-2">
-          📊 Analyse
+          <Text>📊</Text> Analyse
         </Text>
         <Text className="text-gray-400 mb-6">
           Progression globale
@@ -219,19 +219,19 @@ export default function ProgressAnalysisScreen({ navigation }) {
               <Text className="text-success text-2xl font-bold">
                 {analysis.progressingExercises.length}
               </Text>
-              <Text className="text-gray-400 text-sm">↗️ Progression</Text>
+              <Text className="text-gray-400 text-sm"><Text>↗️</Text> Progression</Text>
             </View>
             <View className="items-center">
               <Text className="text-gray-400 text-2xl font-bold">
                 {analysis.stableExercises.length}
               </Text>
-              <Text className="text-gray-400 text-sm">➡️ Stable</Text>
+              <Text className="text-gray-400 text-sm"><Text>➡️</Text> Stable</Text>
             </View>
             <View className="items-center">
               <Text className="text-danger text-2xl font-bold">
                 {analysis.regressingExercises.length}
               </Text>
-              <Text className="text-gray-400 text-sm">↘️ Régression</Text>
+              <Text className="text-gray-400 text-sm"><Text>↘️</Text> Régression</Text>
             </View>
           </View>
         </View>
@@ -240,7 +240,7 @@ export default function ProgressAnalysisScreen({ navigation }) {
         {suggestions.length > 0 && (
           <View className="mb-6">
             <Text className="text-white text-xl font-bold mb-3">
-              💡 SUGGESTIONS
+              <Text>💡</Text> SUGGESTIONS
             </Text>
             {suggestions.map((suggestion, index) => (
               <View
@@ -272,7 +272,7 @@ export default function ProgressAnalysisScreen({ navigation }) {
         {analysis.progressingExercises.length > 0 && (
           <View className="mb-6">
             <Text className="text-success text-xl font-bold mb-3">
-              📈 EN PROGRESSION ({analysis.progressingExercises.length})
+              <Text>📈</Text> EN PROGRESSION ({analysis.progressingExercises.length})
             </Text>
             {analysis.progressingExercises.map((ex) => (
               <TouchableOpacity
@@ -308,7 +308,7 @@ export default function ProgressAnalysisScreen({ navigation }) {
         {analysis.regressingExercises.length > 0 && (
           <View className="mb-6">
             <Text className="text-danger text-xl font-bold mb-3">
-              📉 EN RÉGRESSION ({analysis.regressingExercises.length})
+              <Text>📉</Text> EN RÉGRESSION ({analysis.regressingExercises.length})
             </Text>
             {analysis.regressingExercises.map((ex) => (
               <TouchableOpacity
@@ -344,7 +344,7 @@ export default function ProgressAnalysisScreen({ navigation }) {
         {analysis.stableExercises.length > 0 && (
           <View className="mb-6">
             <Text className="text-gray-400 text-xl font-bold mb-3">
-              ➡️ STABLES ({analysis.stableExercises.length})
+              <Text>➡️</Text> STABLES ({analysis.stableExercises.length})
             </Text>
             {analysis.stableExercises.map((ex) => (
               <TouchableOpacity

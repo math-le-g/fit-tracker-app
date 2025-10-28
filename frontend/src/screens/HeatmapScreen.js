@@ -197,18 +197,18 @@ export default function HeatmapScreen() {
 
         {/* Légende */}
         <View className="bg-primary-navy rounded-2xl p-4 mb-6">
-          <Text className="text-white font-bold mb-3">📖 Légende</Text>
+          <Text className="text-white font-bold mb-3"><Text>📖</Text> Légende</Text>
           <View className="space-y-2">
             <View className="flex-row items-center mb-2">
-              <Text className="text-2xl mr-2">💪</Text>
+              <Text className="text-2xl mr-2"><Text>💪</Text></Text>
               <Text className="text-gray-400">Musculation</Text>
             </View>
             <View className="flex-row items-center mb-2">
-              <Text className="text-2xl mr-2">🏃</Text>
+              <Text className="text-2xl mr-2"><Text>🏃</Text></Text>
               <Text className="text-gray-400">Course</Text>
             </View>
             <View className="flex-row items-center">
-              <Text className="text-2xl mr-2">🔥</Text>
+              <Text className="text-2xl mr-2"><Text>🔥</Text></Text>
               <Text className="text-gray-400">Les deux</Text>
             </View>
           </View>
@@ -218,7 +218,7 @@ export default function HeatmapScreen() {
         {stats && (
           <View className="bg-primary-navy rounded-2xl p-6 mb-6">
             <Text className="text-white text-xl font-bold mb-4">
-              📊 STATS DU MOIS
+              <Text>📊</Text> STATS DU MOIS
             </Text>
 
             <View className="space-y-2">
@@ -232,7 +232,7 @@ export default function HeatmapScreen() {
               <View className="flex-row justify-between mb-2">
                 <Text className="text-gray-400">• Taux d'activité :</Text>
                 <Text className="text-accent-cyan font-bold">
-                  {stats.activityRate}% 🔥
+                  {stats.activityRate}% <Text>🔥</Text>
                 </Text>
               </View>
 
@@ -247,7 +247,7 @@ export default function HeatmapScreen() {
             {stats.activityRate >= 70 && (
               <View className="mt-4 pt-4 border-t border-primary-dark">
                 <Text className="text-success text-center font-bold">
-                  💪 Excellente régularité ! 🔥
+                  <Text>💪</Text> Excellente régularité ! <Text>🔥</Text>
                 </Text>
               </View>
             )}
@@ -260,7 +260,7 @@ export default function HeatmapScreen() {
             <View className="flex-row items-center justify-between">
               <View>
                 <Text className="text-gray-400 text-sm mb-1">
-                  🔥 STREAK ACTUEL
+                  <Text>🔥</Text> STREAK ACTUEL
                 </Text>
                 <Text className="text-white text-3xl font-bold">
                   {user.streak} jours
@@ -268,7 +268,7 @@ export default function HeatmapScreen() {
               </View>
               <View>
                 <Text className="text-gray-400 text-sm mb-1 text-right">
-                  🏆 RECORD PERSONNEL
+                  <text>🏆</text> RECORD PERSONNEL
                 </Text>
                 <Text className="text-accent-cyan text-3xl font-bold text-right">
                   {user.best_streak} jours
@@ -279,7 +279,7 @@ export default function HeatmapScreen() {
             {user.streak === user.best_streak && user.streak > 0 && (
               <View className="mt-4 pt-4 border-t border-accent-cyan/20">
                 <Text className="text-accent-cyan text-center font-bold">
-                  🏆 RECORD PERSONNEL EN COURS ! 🔥
+                  <Text>🏆</Text> RECORD PERSONNEL EN COURS ! <text>🔥</text>
                 </Text>
               </View>
             )}
