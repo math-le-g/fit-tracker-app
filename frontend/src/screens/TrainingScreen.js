@@ -14,6 +14,9 @@ import RunConfirmationScreen from './RunConfirmationScreen';
 import RouteHistoryScreen from './RouteHistoryScreen';
 import CreateRoutineScreen from './CreateRoutineScreen';
 import EditRoutineScreen from './EditRoutineScreen';
+import CreateCustomExerciseScreen from './CreateCustomExerciseScreen';
+import ManageWorkoutExercisesScreen from './ManageWorkoutExercisesScreen';
+import SelectReplacementExerciseScreen from './SelectReplacementExerciseScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -68,6 +71,7 @@ export default function TrainingScreen() {
         headerTitleStyle: {
           fontWeight: 'bold',
         },
+        headerShown: false,
       }}
     >
       <Stack.Screen
@@ -148,6 +152,21 @@ export default function TrainingScreen() {
         name="EditRoutine"
         component={EditRoutineScreen}
         options={{ title: 'Modifier la routine' }}
+      />
+      <Stack.Screen
+        name="CreateCustomExercise"
+        component={CreateCustomExerciseScreen}
+        options={{ title: 'Créer un exercice' }}
+      />
+      <Stack.Screen
+        name="ManageWorkoutExercises"
+        component={ManageWorkoutExercisesScreen}
+        options={{ title: 'Gérer les exercices' }}
+      />
+      <Stack.Screen
+        name="SelectReplacementExercise"
+        component={SelectReplacementExerciseScreen}
+        options={{ title: 'Remplacer l\'exercice' }}
       />
     </Stack.Navigator>
   );

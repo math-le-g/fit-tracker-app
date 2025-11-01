@@ -10,6 +10,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   
   const [workoutId, setWorkoutId] = useState(null);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
+  const [exercisesList, setExercisesList] = useState(exercises);
   const [currentSet, setCurrentSet] = useState(1);
   const [screenState, setScreenState] = useState('exercise'); // 'exercise' | 'rest' | 'transition'
   const [workoutStartTime] = useState(Date.now());
@@ -39,7 +40,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     if (!workoutId) return;
 
     try {
-      const currentExercise = exercises[currentExerciseIndex];
+      const currentExercise = exercisesList[currentExerciseIndex];  // ← CHANGÉ
 
       // Enregistrer la série dans la BDD
       await db.runAsync(
@@ -60,7 +61,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
         setScreenState('rest');
       } else {
         // Exercice terminé !
-        if (currentExerciseIndex < exercises.length - 1) {
+        if (currentExerciseIndex < exercisesList.length - 1) {  // ← CHANGÉ
           // Il y a un prochain exercice - écran de transition
           setScreenState('transition');
         } else {
@@ -108,6 +109,11 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     });
   };
 
+  const handleBack = () => {
+    // TODO: Gérer le retour en arrière pendant la séance
+    navigation.goBack();
+  };
+
   if (!workoutId) {
     return (
       <View className="flex-1 bg-primary-dark items-center justify-center">
@@ -116,11 +122,11 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     );
   }
 
-  const currentExercise = exercises[currentExerciseIndex];
+  const currentExercise = exercisesList[currentExerciseIndex];  // ← CHANGÉ
 
   // ÉCRAN TRANSITION ENTRE EXERCICES
   if (screenState === 'transition') {
-    const nextExercise = exercises[currentExerciseIndex + 1];
+    const nextExercise = exercisesList[currentExerciseIndex + 1];  // ← CHANGÉ
     
     return (
       <ExerciseTransitionScreen
@@ -128,7 +134,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
         completedSets={currentExerciseCompletedSets}
         nextExercise={nextExercise}
         exerciseNumber={currentExerciseIndex + 1}
-        totalExercises={exercises.length}
+        totalExercises={exercisesList.length}  // ← CHANGÉ
         workoutStartTime={workoutStartTime}
         warmupDuration={warmupDuration}
         onStartNext={handleStartNextExercise}
@@ -161,7 +167,11 @@ export default function WorkoutSessionScreen({ route, navigation }) {
       workoutStartTime={workoutStartTime}
       warmupDuration={warmupDuration}
       exerciseIndex={currentExerciseIndex}
-      totalExercises={exercises.length}
+      totalExercises={exercisesList.length}  // ← CHANGÉ
+      exercisesList={exercisesList}          // ← AJOUTÉ
+      setExercisesList={setExercisesList}    // ← AJOUTÉ
+      navigation={navigation}                // ← AJOUTÉ
+      onBack={handleBack}                    // ← AJOUTÉ
     />
   );
 }

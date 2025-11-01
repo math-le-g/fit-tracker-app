@@ -12,7 +12,11 @@ export default function ExerciseScreen({
   workoutStartTime,
   warmupDuration,
   exerciseIndex,
-  totalExercises
+  totalExercises,
+  exercisesList,      // ← AJOUTÉ
+  setExercisesList,   // ← AJOUTÉ
+  navigation,         // ← AJOUTÉ
+  onBack              // ← AJOUTÉ
 }) {
   const [weight, setWeight] = useState('');
   const [reps, setReps] = useState('');
@@ -134,13 +138,29 @@ export default function ExerciseScreen({
           <Text className="text-white text-3xl font-bold mb-2">
             {exercise.name}
           </Text>
-          <View className="flex-row items-center">
-            <Text className="text-accent-cyan text-xl font-bold">
-              Série {setNumber}/{totalSets}
-            </Text>
-            <Text className="text-gray-400 ml-4">
-              ⏱️ {formatTime(elapsedTime)}
-            </Text>
+          
+          {/* Ligne avec Série + Timer + Bouton Gérer */}
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center">
+              <Text className="text-accent-cyan text-xl font-bold">
+                Série {setNumber}/{totalSets}
+              </Text>
+              <Text className="text-gray-400 ml-4">
+                ⏱️ {formatTime(elapsedTime)}
+              </Text>
+            </View>
+            
+            {/* Bouton Gérer exercices */}
+            <TouchableOpacity
+              className="bg-primary-navy rounded-full p-2"
+              onPress={() => navigation.navigate('ManageWorkoutExercises', {
+                exercises: exercisesList,
+                currentIndex: exerciseIndex,
+                onReorder: (newList) => setExercisesList(newList)
+              })}
+            >
+              <Ionicons name="settings" size={24} color="#00f5ff" />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -206,8 +226,8 @@ export default function ExerciseScreen({
         {lastPerformance && (
           <View className="bg-primary-navy rounded-2xl p-4 mb-4">
             <Text className="text-gray-400 text-sm mb-2">
-              <Text>📊 DERNIÈRE FOIS</Text>
-              </Text>
+              📊 DERNIÈRE FOIS
+            </Text>
             <Text className="text-white font-semibold">
               {lastPerformance[0].weight}kg × {lastPerformance[0].reps} reps
             </Text>
@@ -220,7 +240,7 @@ export default function ExerciseScreen({
             <View className="flex-row items-center mb-3">
               <Ionicons name="bulb" size={20} color="#00f5ff" />
               <Text className="text-accent-cyan text-sm font-bold ml-2">
-                <Text>🎯 SUGGESTION</Text>
+                🎯 SUGGESTION
               </Text>
             </View>
 
@@ -268,7 +288,7 @@ export default function ExerciseScreen({
             className="flex-1 bg-primary-navy rounded-xl p-3"
           >
             <Text className="text-gray-400 text-center font-semibold">
-              <Text>📝 Note</Text>
+              📝 Note
             </Text>
           </TouchableOpacity>
         </View>

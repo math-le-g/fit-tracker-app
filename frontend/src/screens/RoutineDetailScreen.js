@@ -209,7 +209,7 @@ export default function RoutineDetailScreen({ route, navigation }) {
                 </Text>
               </View>
 
-              <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+              
             </View>
           ))}
         </View>
