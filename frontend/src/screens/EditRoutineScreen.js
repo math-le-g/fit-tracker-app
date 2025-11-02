@@ -66,13 +66,13 @@ export default function EditRoutineScreen({ route, navigation }) {
   };
 
   const updateExerciseSets = (exerciseId, sets) => {
-    setSelectedExercises(selectedExercises.map(e => 
+    setSelectedExercises(selectedExercises.map(e =>
       e.id === exerciseId ? { ...e, sets: parseInt(sets) || 3 } : e
     ));
   };
 
   const updateExerciseRest = (exerciseId, rest) => {
-    setSelectedExercises(selectedExercises.map(e => 
+    setSelectedExercises(selectedExercises.map(e =>
       e.id === exerciseId ? { ...e, rest_time: parseInt(rest) || 60 } : e
     ));
   };
@@ -80,7 +80,7 @@ export default function EditRoutineScreen({ route, navigation }) {
   const moveExercise = (index, direction) => {
     const newOrder = [...selectedExercises];
     const newIndex = direction === 'up' ? index - 1 : index + 1;
-    
+
     if (newIndex >= 0 && newIndex < newOrder.length) {
       [newOrder[index], newOrder[newIndex]] = [newOrder[newIndex], newOrder[index]];
       setSelectedExercises(newOrder);
@@ -139,13 +139,27 @@ export default function EditRoutineScreen({ route, navigation }) {
     return (
       <ScrollView className="flex-1 bg-primary-dark">
         <View className="p-6">
-          <TouchableOpacity
-            className="flex-row items-center mb-4"
-            onPress={() => setShowExercisePicker(false)}
-          >
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-            <Text className="text-white ml-2 text-lg">Retour</Text>
-          </TouchableOpacity>
+          <View className="flex-row items-center justify-between mb-4">
+            <TouchableOpacity
+              className="flex-row items-center"
+              onPress={() => setShowExercisePicker(false)}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+              <Text className="text-white ml-2 text-lg">Retour</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className="bg-accent-cyan rounded-full px-4 py-2"
+              onPress={() => navigation.navigate('CreateCustomExercise', {
+                onExerciseCreated: (newExercise) => {
+                  addExercise(newExercise);
+                  setShowExercisePicker(false);
+                }
+              })}
+            >
+              <Text className="text-primary-dark font-bold">+ CRÉER</Text>
+            </TouchableOpacity>
+          </View>
 
           <Text className="text-white text-2xl font-bold mb-6">
             Choisis un exercice
@@ -194,14 +208,12 @@ export default function EditRoutineScreen({ route, navigation }) {
             {['push', 'pull', 'legs', 'custom'].map((type) => (
               <TouchableOpacity
                 key={type}
-                className={`flex-1 rounded-xl p-3 ${
-                  routineType === type ? 'bg-accent-cyan' : 'bg-primary-navy'
-                }`}
+                className={`flex-1 rounded-xl p-3 ${routineType === type ? 'bg-accent-cyan' : 'bg-primary-navy'
+                  }`}
                 onPress={() => setRoutineType(type)}
               >
-                <Text className={`text-center font-bold text-xs ${
-                  routineType === type ? 'text-primary-dark' : 'text-gray-400'
-                }`}>
+                <Text className={`text-center font-bold text-xs ${routineType === type ? 'text-primary-dark' : 'text-gray-400'
+                  }`}>
                   {type.toUpperCase()}
                 </Text>
               </TouchableOpacity>
@@ -240,20 +252,20 @@ export default function EditRoutineScreen({ route, navigation }) {
                     onPress={() => moveExercise(index, 'up')}
                     disabled={index === 0}
                   >
-                    <Ionicons 
-                      name="chevron-up" 
-                      size={20} 
-                      color={index === 0 ? '#374151' : '#6b7280'} 
+                    <Ionicons
+                      name="chevron-up"
+                      size={20}
+                      color={index === 0 ? '#374151' : '#6b7280'}
                     />
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => moveExercise(index, 'down')}
                     disabled={index === selectedExercises.length - 1}
                   >
-                    <Ionicons 
-                      name="chevron-down" 
-                      size={20} 
-                      color={index === selectedExercises.length - 1 ? '#374151' : '#6b7280'} 
+                    <Ionicons
+                      name="chevron-down"
+                      size={20}
+                      color={index === selectedExercises.length - 1 ? '#374151' : '#6b7280'}
                     />
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => removeExercise(exercise.id)}>
