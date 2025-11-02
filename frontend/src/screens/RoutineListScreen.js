@@ -3,22 +3,25 @@ import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { db } from '../database/database';
 import { Ionicons } from '@expo/vector-icons';
-import { Alert } from 'react-native';
+import CustomModal from '../components/CustomModal';
 
 export default function RoutineListScreen({ navigation }) {
   const [routines, setRoutines] = useState([]);
+  
+  // États pour le modal
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState({});
 
   useFocusEffect(
-  useCallback(() => {
-    loadRoutines();
-  }, [])
-);
+    useCallback(() => {
+      loadRoutines();
+    }, [])
+  );
 
   const loadRoutines = async () => {
     try {
       const allRoutines = await db.getAllAsync('SELECT * FROM routines ORDER BY id ASC');
 
-      // Pour chaque routine, charger les exercices
       const routinesWithExercises = await Promise.all(
         allRoutines.map(async (routine) => {
           const exercises = await db.getAllAsync(`
@@ -44,6 +47,54 @@ export default function RoutineListScreen({ navigation }) {
     } catch (error) {
       console.error('Erreur chargement routines:', error);
     }
+  };
+
+  const handleLongPress = (routine) => {
+    setModalConfig({
+      title: routine.name,
+      message: 'Que veux-tu faire ?',
+      icon: 'options',
+      iconColor: '#00f5ff',
+      buttons: [
+        {
+          text: 'Modifier',
+          onPress: () => navigation.navigate('EditRoutine', { routineId: routine.id })
+        },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: () => {
+            // Ouvrir un second modal pour confirmer
+            setModalConfig({
+              title: 'Confirmer',
+              message: 'Supprimer cette routine ?',
+              icon: 'trash',
+              iconColor: '#ff4444',
+              buttons: [
+                { text: 'Annuler', onPress: () => {} },
+                {
+                  text: 'Supprimer',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await db.runAsync('DELETE FROM routine_exercises WHERE routine_id = ?', [routine.id]);
+                      await db.runAsync('DELETE FROM routines WHERE id = ?', [routine.id]);
+                      loadRoutines();
+                    } catch (error) {
+                      console.error('Erreur suppression:', error);
+                    }
+                  }
+                }
+              ]
+            });
+            setModalVisible(true);
+          },
+          closeOnPress: false
+        },
+        { text: 'Annuler', onPress: () => {} }
+      ]
+    });
+    setModalVisible(true);
   };
 
   const getRoutineIcon = (type) => {
@@ -79,45 +130,7 @@ export default function RoutineListScreen({ navigation }) {
             key={routine.id}
             className="bg-primary-navy rounded-2xl p-4 mb-4 border border-accent-cyan/20"
             onPress={() => navigation.navigate('RoutineDetail', { routineId: routine.id })}
-            onLongPress={() => {
-              Alert.alert(
-                routine.name,
-                'Que veux-tu faire ?',
-                [
-                  {
-                    text: 'Modifier',
-                    onPress: () => navigation.navigate('EditRoutine', { routineId: routine.id })
-                  },
-                  {
-                    text: 'Supprimer',
-                    style: 'destructive',
-                    onPress: () => {
-                      Alert.alert(
-                        'Confirmer',
-                        'Supprimer cette routine ?',
-                        [
-                          { text: 'Annuler', style: 'cancel' },
-                          {
-                            text: 'Supprimer',
-                            style: 'destructive',
-                            onPress: async () => {
-                              try {
-                                await db.runAsync('DELETE FROM routine_exercises WHERE routine_id = ?', [routine.id]);
-                                await db.runAsync('DELETE FROM routines WHERE id = ?', [routine.id]);
-                                loadRoutines();
-                              } catch (error) {
-                                console.error('Erreur suppression:', error);
-                              }
-                            }
-                          }
-                        ]
-                      );
-                    }
-                  },
-                  { text: 'Annuler', style: 'cancel' }
-                ]
-              );
-            }}
+            onLongPress={() => handleLongPress(routine)}
           >
             <View className="flex-row items-center mb-3">
               <View className={`${getRoutineColor(routine.type)} rounded-full p-2 mr-3`}>
@@ -170,6 +183,13 @@ export default function RoutineListScreen({ navigation }) {
             Créer une routine
           </Text>
         </TouchableOpacity>
+
+        {/* Modal custom */}
+        <CustomModal
+          visible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          {...modalConfig}
+        />
       </View>
     </ScrollView>
   );

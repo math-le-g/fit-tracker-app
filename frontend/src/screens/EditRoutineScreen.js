@@ -1,7 +1,8 @@
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { useState, useEffect } from 'react';
 import { db } from '../database/database';
 import { Ionicons } from '@expo/vector-icons';
+import CustomModal from '../components/CustomModal';
 
 export default function EditRoutineScreen({ route, navigation }) {
   const { routineId } = route.params;
@@ -11,6 +12,10 @@ export default function EditRoutineScreen({ route, navigation }) {
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [availableExercises, setAvailableExercises] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // États pour le modal
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState({});
 
   useEffect(() => {
     loadRoutine();
@@ -89,12 +94,30 @@ export default function EditRoutineScreen({ route, navigation }) {
 
   const saveRoutine = async () => {
     if (!routineName.trim()) {
-      Alert.alert('Erreur', 'Donne un nom à ta routine !');
+      setModalConfig({
+        title: 'Erreur',
+        message: 'Donne un nom à ta routine !',
+        icon: 'alert-circle',
+        iconColor: '#ff4444',
+        buttons: [
+          { text: 'OK', style: 'primary', onPress: () => {} }
+        ]
+      });
+      setModalVisible(true);
       return;
     }
 
     if (selectedExercises.length === 0) {
-      Alert.alert('Erreur', 'Ajoute au moins un exercice !');
+      setModalConfig({
+        title: 'Erreur',
+        message: 'Ajoute au moins un exercice !',
+        icon: 'alert-circle',
+        iconColor: '#ff4444',
+        buttons: [
+          { text: 'OK', style: 'primary', onPress: () => {} }
+        ]
+      });
+      setModalVisible(true);
       return;
     }
 
@@ -117,13 +140,33 @@ export default function EditRoutineScreen({ route, navigation }) {
         );
       }
 
-      Alert.alert('✅ Succès', 'Routine modifiée !', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
+      setModalConfig({
+        title: '✅ Succès',
+        message: 'Routine modifiée !',
+        icon: 'checkmark-circle',
+        iconColor: '#00ff88',
+        buttons: [
+          { 
+            text: 'OK', 
+            style: 'primary', 
+            onPress: () => navigation.goBack()
+          }
+        ]
+      });
+      setModalVisible(true);
 
     } catch (error) {
       console.error('Erreur modification routine:', error);
-      Alert.alert('Erreur', 'Impossible de modifier la routine');
+      setModalConfig({
+        title: 'Erreur',
+        message: 'Impossible de modifier la routine',
+        icon: 'alert-circle',
+        iconColor: '#ff4444',
+        buttons: [
+          { text: 'OK', style: 'primary', onPress: () => {} }
+        ]
+      });
+      setModalVisible(true);
     }
   };
 
@@ -208,12 +251,10 @@ export default function EditRoutineScreen({ route, navigation }) {
             {['push', 'pull', 'legs', 'custom'].map((type) => (
               <TouchableOpacity
                 key={type}
-                className={`flex-1 rounded-xl p-3 ${routineType === type ? 'bg-accent-cyan' : 'bg-primary-navy'
-                  }`}
+                className={`flex-1 rounded-xl p-3 ${routineType === type ? 'bg-accent-cyan' : 'bg-primary-navy'}`}
                 onPress={() => setRoutineType(type)}
               >
-                <Text className={`text-center font-bold text-xs ${routineType === type ? 'text-primary-dark' : 'text-gray-400'
-                  }`}>
+                <Text className={`text-center font-bold text-xs ${routineType === type ? 'text-primary-dark' : 'text-gray-400'}`}>
                   {type.toUpperCase()}
                 </Text>
               </TouchableOpacity>
@@ -316,6 +357,13 @@ export default function EditRoutineScreen({ route, navigation }) {
             Annuler
           </Text>
         </TouchableOpacity>
+
+        {/* Modal custom */}
+        <CustomModal
+          visible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          {...modalConfig}
+        />
       </View>
     </ScrollView>
   );

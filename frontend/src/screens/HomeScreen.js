@@ -384,7 +384,7 @@ export default function HomeScreen({ navigation }) {
               padding: 20,
               marginBottom: 12
             }}
-            onPress={() => navigation.navigate('Training')}
+            onPress={() => navigation.navigate('Entraînement', { screen: 'RoutineList' })}
           >
             <Text style={{ color: '#1a1d2e', textAlign: 'center', fontSize: 18, fontWeight: 'bold' }}>
               ▶ COMMENCER UNE SÉANCE
@@ -399,7 +399,7 @@ export default function HomeScreen({ navigation }) {
               borderWidth: 1,
               borderColor: 'rgba(255, 255, 255, 0.1)'
             }}
-            onPress={() => navigation.navigate('Training')}
+            onPress={() => navigation.navigate('Entraînement', { screen: 'RoutineList' })}
           >
             <Text style={{ color: '#a8a8a0', textAlign: 'center', fontWeight: '600' }}>
               📋 Mes routines

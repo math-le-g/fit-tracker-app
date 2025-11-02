@@ -1,6 +1,7 @@
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { useState } from 'react';
 import { db } from '../database/database';
+import CustomModal from '../components/CustomModal';
 
 export default function CreateCustomExerciseScreen({ navigation, route }) {
   const { onExerciseCreated } = route.params || {};
@@ -8,18 +9,40 @@ export default function CreateCustomExerciseScreen({ navigation, route }) {
   const [muscleGroup, setMuscleGroup] = useState('');
   const [equipment, setEquipment] = useState('');
   const [restTime, setRestTime] = useState(90);
+  
+  // États pour le modal
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState({});
 
   const muscleGroups = ['Pectoraux', 'Dos', 'Épaules', 'Biceps', 'Triceps', 'Jambes', 'Abdominaux', 'Autre'];
   const restTimes = [30, 45, 60, 90, 120];
 
   const createExercise = async () => {
     if (!name.trim()) {
-      Alert.alert('Erreur', 'Donne un nom à l\'exercice !');
+      setModalConfig({
+        title: 'Erreur',
+        message: 'Donne un nom à l\'exercice !',
+        icon: 'alert-circle',
+        iconColor: '#ff4444',
+        buttons: [
+          { text: 'OK', style: 'primary', onPress: () => {} }
+        ]
+      });
+      setModalVisible(true);
       return;
     }
 
     if (!muscleGroup) {
-      Alert.alert('Erreur', 'Choisis un groupe musculaire !');
+      setModalConfig({
+        title: 'Erreur',
+        message: 'Choisis un groupe musculaire !',
+        icon: 'alert-circle',
+        iconColor: '#ff4444',
+        buttons: [
+          { text: 'OK', style: 'primary', onPress: () => {} }
+        ]
+      });
+      setModalVisible(true);
       return;
     }
 
@@ -44,13 +67,33 @@ export default function CreateCustomExerciseScreen({ navigation, route }) {
         onExerciseCreated(newExercise);
       }
 
-      Alert.alert('✅ Succès', 'Exercice créé !', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
+      setModalConfig({
+        title: '✅ Succès',
+        message: 'Exercice créé !',
+        icon: 'checkmark-circle',
+        iconColor: '#00ff88',
+        buttons: [
+          { 
+            text: 'OK', 
+            style: 'primary', 
+            onPress: () => navigation.goBack()
+          }
+        ]
+      });
+      setModalVisible(true);
 
     } catch (error) {
       console.error('Erreur création exercice:', error);
-      Alert.alert('Erreur', 'Impossible de créer l\'exercice');
+      setModalConfig({
+        title: 'Erreur',
+        message: 'Impossible de créer l\'exercice',
+        icon: 'alert-circle',
+        iconColor: '#ff4444',
+        buttons: [
+          { text: 'OK', style: 'primary', onPress: () => {} }
+        ]
+      });
+      setModalVisible(true);
     }
   };
 
@@ -147,6 +190,13 @@ export default function CreateCustomExerciseScreen({ navigation, route }) {
             Annuler
           </Text>
         </TouchableOpacity>
+
+        {/* Modal custom */}
+        <CustomModal
+          visible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          {...modalConfig}
+        />
       </View>
     </ScrollView>
   );

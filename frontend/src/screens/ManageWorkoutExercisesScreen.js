@@ -1,13 +1,18 @@
-import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useState, useEffect } from 'react';
 import { db } from '../database/database';
 import { Ionicons } from '@expo/vector-icons';
+import CustomModal from '../components/CustomModal';
 
 export default function ManageWorkoutExercisesScreen({ route, navigation }) {
   const { exercises, currentIndex, onReorder } = route.params;
   const [exerciseList, setExerciseList] = useState([...exercises]);
   const [availableExercises, setAvailableExercises] = useState([]);
   const [showAddExercise, setShowAddExercise] = useState(false);
+  
+  // États pour le modal
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState({});
 
   useEffect(() => {
     if (showAddExercise) {
@@ -26,7 +31,16 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
 
   const moveExercise = (index, direction) => {
     if (index <= currentIndex) {
-      Alert.alert('Info', 'Tu ne peux pas déplacer un exercice déjà fait !');
+      setModalConfig({
+        title: 'Info',
+        message: 'Tu ne peux pas déplacer un exercice déjà fait !',
+        icon: 'information-circle',
+        iconColor: '#00f5ff',
+        buttons: [
+          { text: 'OK', style: 'primary', onPress: () => {} }
+        ]
+      });
+      setModalVisible(true);
       return;
     }
 
@@ -34,7 +48,16 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
 
     if (targetIndex <= currentIndex) {
-      Alert.alert('Info', 'Tu ne peux pas déplacer avant l\'exercice en cours !');
+      setModalConfig({
+        title: 'Info',
+        message: 'Tu ne peux pas déplacer avant l\'exercice en cours !',
+        icon: 'information-circle',
+        iconColor: '#00f5ff',
+        buttons: [
+          { text: 'OK', style: 'primary', onPress: () => {} }
+        ]
+      });
+      setModalVisible(true);
       return;
     }
 
@@ -46,17 +69,29 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
 
   const skipExercise = (index) => {
     if (index <= currentIndex) {
-      Alert.alert('Info', 'Cet exercice est déjà fait !');
+      setModalConfig({
+        title: 'Info',
+        message: 'Cet exercice est déjà fait !',
+        icon: 'information-circle',
+        iconColor: '#00f5ff',
+        buttons: [
+          { text: 'OK', style: 'primary', onPress: () => {} }
+        ]
+      });
+      setModalVisible(true);
       return;
     }
 
-    Alert.alert(
-      '⏭️ Passer cet exercice ?',
-      'Il sera déplacé à la fin',
-      [
-        { text: 'Annuler', style: 'cancel' },
+    setModalConfig({
+      title: '⏭️ Passer cet exercice ?',
+      message: 'Il sera déplacé à la fin',
+      icon: 'play-forward',
+      iconColor: '#d4af37',
+      buttons: [
+        { text: 'Annuler', onPress: () => {} },
         {
           text: 'Passer',
+          style: 'primary',
           onPress: () => {
             const newList = [...exerciseList];
             const exercise = newList.splice(index, 1)[0];
@@ -65,24 +100,36 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
           }
         }
       ]
-    );
+    });
+    setModalVisible(true);
   };
 
   const replaceExercise = (index) => {
     if (index <= currentIndex) {
-      Alert.alert('Info', 'Cet exercice est déjà fait !');
+      setModalConfig({
+        title: 'Info',
+        message: 'Cet exercice est déjà fait !',
+        icon: 'information-circle',
+        iconColor: '#00f5ff',
+        buttons: [
+          { text: 'OK', style: 'primary', onPress: () => {} }
+        ]
+      });
+      setModalVisible(true);
       return;
     }
 
-    Alert.alert(
-      '🔄 Remplacer cet exercice ?',
-      `Remplacer "${exerciseList[index].name}" par un autre`,
-      [
-        { text: 'Annuler', style: 'cancel' },
+    setModalConfig({
+      title: '🔄 Remplacer cet exercice ?',
+      message: `Remplacer "${exerciseList[index].name}" par un autre`,
+      icon: 'repeat',
+      iconColor: '#d4af37',
+      buttons: [
+        { text: 'Annuler', onPress: () => {} },
         {
           text: 'Remplacer',
+          style: 'primary',
           onPress: () => {
-            // Stocker l'index à remplacer
             navigation.navigate('SelectReplacementExercise', {
               currentExercises: exerciseList,
               replaceIndex: index,
@@ -99,20 +146,32 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
           }
         }
       ]
-    );
+    });
+    setModalVisible(true);
   };
 
   const removeExercise = (index) => {
     if (index <= currentIndex) {
-      Alert.alert('Info', 'Cet exercice est déjà fait !');
+      setModalConfig({
+        title: 'Info',
+        message: 'Cet exercice est déjà fait !',
+        icon: 'information-circle',
+        iconColor: '#00f5ff',
+        buttons: [
+          { text: 'OK', style: 'primary', onPress: () => {} }
+        ]
+      });
+      setModalVisible(true);
       return;
     }
 
-    Alert.alert(
-      '🗑️ Retirer cet exercice ?',
-      'Il sera complètement supprimé de cette séance',
-      [
-        { text: 'Annuler', style: 'cancel' },
+    setModalConfig({
+      title: '🗑️ Retirer cet exercice ?',
+      message: 'Il sera complètement supprimé de cette séance',
+      icon: 'trash',
+      iconColor: '#ff4444',
+      buttons: [
+        { text: 'Annuler', onPress: () => {} },
         {
           text: 'Retirer',
           style: 'destructive',
@@ -122,7 +181,8 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
           }
         }
       ]
-    );
+    });
+    setModalVisible(true);
   };
 
   const addExercise = (exercise) => {
@@ -137,7 +197,16 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
 
   const saveChanges = () => {
     if (exerciseList.length === 0) {
-      Alert.alert('Erreur', 'Tu dois avoir au moins un exercice !');
+      setModalConfig({
+        title: 'Erreur',
+        message: 'Tu dois avoir au moins un exercice !',
+        icon: 'alert-circle',
+        iconColor: '#ff4444',
+        buttons: [
+          { text: 'OK', style: 'primary', onPress: () => {} }
+        ]
+      });
+      setModalVisible(true);
       return;
     }
 
@@ -193,6 +262,13 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
               </View>
             </TouchableOpacity>
           ))}
+
+          {/* Modal custom */}
+          <CustomModal
+            visible={modalVisible}
+            onClose={() => setModalVisible(false)}
+            {...modalConfig}
+          />
         </View>
       </ScrollView>
     );
@@ -325,6 +401,13 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
             Annuler
           </Text>
         </TouchableOpacity>
+
+        {/* Modal custom */}
+        <CustomModal
+          visible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          {...modalConfig}
+        />
       </View>
     </ScrollView>
   );

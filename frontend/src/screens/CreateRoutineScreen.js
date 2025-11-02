@@ -1,7 +1,8 @@
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { useState } from 'react';
 import { db } from '../database/database';
 import { Ionicons } from '@expo/vector-icons';
+import CustomModal from '../components/CustomModal';
 
 export default function CreateRoutineScreen({ navigation }) {
   const [routineName, setRoutineName] = useState('');
@@ -9,6 +10,10 @@ export default function CreateRoutineScreen({ navigation }) {
   const [selectedExercises, setSelectedExercises] = useState([]);
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [availableExercises, setAvailableExercises] = useState([]);
+  
+  // États pour le modal
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState({});
 
   const loadExercises = async () => {
     try {
@@ -36,13 +41,13 @@ export default function CreateRoutineScreen({ navigation }) {
   };
 
   const updateExerciseSets = (exerciseId, sets) => {
-    setSelectedExercises(selectedExercises.map(e =>
+    setSelectedExercises(selectedExercises.map(e => 
       e.id === exerciseId ? { ...e, sets: parseInt(sets) || 3 } : e
     ));
   };
 
   const updateExerciseRest = (exerciseId, rest) => {
-    setSelectedExercises(selectedExercises.map(e =>
+    setSelectedExercises(selectedExercises.map(e => 
       e.id === exerciseId ? { ...e, rest_time: parseInt(rest) || 60 } : e
     ));
   };
@@ -50,7 +55,7 @@ export default function CreateRoutineScreen({ navigation }) {
   const moveExercise = (index, direction) => {
     const newOrder = [...selectedExercises];
     const newIndex = direction === 'up' ? index - 1 : index + 1;
-
+    
     if (newIndex >= 0 && newIndex < newOrder.length) {
       [newOrder[index], newOrder[newIndex]] = [newOrder[newIndex], newOrder[index]];
       setSelectedExercises(newOrder);
@@ -59,12 +64,30 @@ export default function CreateRoutineScreen({ navigation }) {
 
   const saveRoutine = async () => {
     if (!routineName.trim()) {
-      Alert.alert('Erreur', 'Donne un nom à ta routine !');
+      setModalConfig({
+        title: 'Erreur',
+        message: 'Donne un nom à ta routine !',
+        icon: 'alert-circle',
+        iconColor: '#ff4444',
+        buttons: [
+          { text: 'OK', style: 'primary', onPress: () => {} }
+        ]
+      });
+      setModalVisible(true);
       return;
     }
 
     if (selectedExercises.length === 0) {
-      Alert.alert('Erreur', 'Ajoute au moins un exercice !');
+      setModalConfig({
+        title: 'Erreur',
+        message: 'Ajoute au moins un exercice !',
+        icon: 'alert-circle',
+        iconColor: '#ff4444',
+        buttons: [
+          { text: 'OK', style: 'primary', onPress: () => {} }
+        ]
+      });
+      setModalVisible(true);
       return;
     }
 
@@ -86,13 +109,33 @@ export default function CreateRoutineScreen({ navigation }) {
         );
       }
 
-      Alert.alert('✅ Succès', 'Routine créée !', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
+      setModalConfig({
+        title: '✅ Succès',
+        message: 'Routine créée !',
+        icon: 'checkmark-circle',
+        iconColor: '#00ff88',
+        buttons: [
+          { 
+            text: 'OK', 
+            style: 'primary', 
+            onPress: () => navigation.goBack()
+          }
+        ]
+      });
+      setModalVisible(true);
 
     } catch (error) {
       console.error('Erreur création routine:', error);
-      Alert.alert('Erreur', 'Impossible de créer la routine');
+      setModalConfig({
+        title: 'Erreur',
+        message: 'Impossible de créer la routine',
+        icon: 'alert-circle',
+        iconColor: '#ff4444',
+        buttons: [
+          { text: 'OK', style: 'primary', onPress: () => {} }
+        ]
+      });
+      setModalVisible(true);
     }
   };
 
@@ -169,12 +212,14 @@ export default function CreateRoutineScreen({ navigation }) {
             {['push', 'pull', 'legs', 'custom'].map((type) => (
               <TouchableOpacity
                 key={type}
-                className={`flex-1 rounded-xl p-3 ${routineType === type ? 'bg-accent-cyan' : 'bg-primary-navy'
-                  }`}
+                className={`flex-1 rounded-xl p-3 ${
+                  routineType === type ? 'bg-accent-cyan' : 'bg-primary-navy'
+                }`}
                 onPress={() => setRoutineType(type)}
               >
-                <Text className={`text-center font-bold text-xs ${routineType === type ? 'text-primary-dark' : 'text-gray-400'
-                  }`}>
+                <Text className={`text-center font-bold text-xs ${
+                  routineType === type ? 'text-primary-dark' : 'text-gray-400'
+                }`}>
                   {type.toUpperCase()}
                 </Text>
               </TouchableOpacity>
@@ -213,20 +258,20 @@ export default function CreateRoutineScreen({ navigation }) {
                     onPress={() => moveExercise(index, 'up')}
                     disabled={index === 0}
                   >
-                    <Ionicons
-                      name="chevron-up"
-                      size={20}
-                      color={index === 0 ? '#374151' : '#6b7280'}
+                    <Ionicons 
+                      name="chevron-up" 
+                      size={20} 
+                      color={index === 0 ? '#374151' : '#6b7280'} 
                     />
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => moveExercise(index, 'down')}
                     disabled={index === selectedExercises.length - 1}
                   >
-                    <Ionicons
-                      name="chevron-down"
-                      size={20}
-                      color={index === selectedExercises.length - 1 ? '#374151' : '#6b7280'}
+                    <Ionicons 
+                      name="chevron-down" 
+                      size={20} 
+                      color={index === selectedExercises.length - 1 ? '#374151' : '#6b7280'} 
                     />
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => removeExercise(exercise.id)}>
@@ -277,6 +322,13 @@ export default function CreateRoutineScreen({ navigation }) {
             Annuler
           </Text>
         </TouchableOpacity>
+
+        {/* Modal custom */}
+        <CustomModal
+          visible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          {...modalConfig}
+        />
       </View>
     </ScrollView>
   );
