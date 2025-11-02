@@ -3,11 +3,16 @@ import { useEffect, useState } from 'react';
 import { db } from '../database/database';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import CustomModal from '../components/CustomModal';
 
 export default function SelectRouteScreen({ route, navigation }) {
   const { distance, onSelect } = route.params;
   const [routes, setRoutes] = useState([]);
   const [similarRoutes, setSimilarRoutes] = useState([]);
+  
+  // États pour le modal
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState({});
 
   useEffect(() => {
     loadRoutes();
@@ -34,12 +39,79 @@ export default function SelectRouteScreen({ route, navigation }) {
     navigation.navigate('LogRun', { selectedRoute });
   };
 
+  const handleLongPress = (routeToManage) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
+    setModalConfig({
+      title: routeToManage.name,
+      message: 'Que veux-tu faire avec ce parcours ?',
+      icon: 'location',
+      iconColor: '#b026ff',
+      buttons: [
+        {
+          text: '🗑️ Supprimer',
+          style: 'destructive',
+          onPress: () => {
+            // Ouvrir un second modal pour confirmer la suppression
+            setModalConfig({
+              title: '🗑️ Supprimer ce parcours ?',
+              message: `Êtes-vous sûr de vouloir supprimer "${routeToManage.name}" ?\n\nToutes les courses associées à ce parcours seront conservées mais ne seront plus liées au parcours.`,
+              icon: 'trash',
+              iconColor: '#ff4444',
+              buttons: [
+                { text: 'Annuler', onPress: () => {} },
+                {
+                  text: 'Supprimer',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      // Mettre à null le route_id des courses associées
+                      await db.runAsync(
+                        'UPDATE runs SET route_id = NULL WHERE route_id = ?',
+                        [routeToManage.id]
+                      );
+                      
+                      // Supprimer le parcours
+                      await db.runAsync('DELETE FROM routes WHERE id = ?', [routeToManage.id]);
+                      
+                      console.log('✅ Parcours supprimé:', routeToManage.name);
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      
+                      // Recharger la liste
+                      loadRoutes();
+                    } catch (error) {
+                      console.error('❌ Erreur suppression parcours:', error);
+                      setModalConfig({
+                        title: 'Erreur',
+                        message: 'Impossible de supprimer le parcours',
+                        icon: 'alert-circle',
+                        iconColor: '#ff4444',
+                        buttons: [
+                          { text: 'OK', style: 'primary', onPress: () => {} }
+                        ]
+                      });
+                      setModalVisible(true);
+                    }
+                  }
+                }
+              ]
+            });
+            setModalVisible(true);
+          },
+          closeOnPress: false
+        },
+        { text: 'Annuler', onPress: () => {} }
+      ]
+    });
+    setModalVisible(true);
+  };
+
   const getTerrainIcon = (terrain) => {
     switch (terrain) {
-      case 'Plat': return <Text>➡️</Text>;
-      case 'Vallonné': return <Text>〰️</Text>;
-      case 'Montagne': return <Text>⛰️</Text>;
-      default: return <Text>📍</Text>;
+      case 'Plat': return '➡️';
+      case 'Vallonné': return '〰️';
+      case 'Montagne': return '⛰️';
+      default: return '📍';
     }
   };
 
@@ -47,12 +119,27 @@ export default function SelectRouteScreen({ route, navigation }) {
     <ScrollView className="flex-1 bg-primary-dark">
       <View className="p-6">
         <Text className="text-white text-2xl font-bold mb-2">
-          <Text>📍 </Text>Parcours
+          📍 Parcours
         </Text>
 
         <Text className="text-gray-400 mb-6">
           Sélectionne un parcours pour cette course
         </Text>
+
+        {/* Info : appui long pour supprimer */}
+        <View className="bg-primary-navy rounded-2xl p-4 mb-6 border border-accent-cyan/20">
+          <View className="flex-row items-start">
+            <Ionicons name="information-circle" size={20} color="#00f5ff" />
+            <View className="flex-1 ml-3">
+              <Text className="text-accent-cyan text-sm font-bold mb-1">
+                💡 ASTUCE
+              </Text>
+              <Text className="text-gray-400 text-xs">
+                Appuie longuement sur un parcours pour le supprimer
+              </Text>
+            </View>
+          </View>
+        </View>
 
         {/* Parcours similaires détectés */}
         {similarRoutes.length > 0 && (
@@ -60,7 +147,7 @@ export default function SelectRouteScreen({ route, navigation }) {
             <View className="flex-row items-center mb-3">
               <Ionicons name="bulb" size={20} color="#00f5ff" />
               <Text className="text-accent-cyan text-sm font-bold ml-2">
-                <Text>💡 </Text>PARCOURS SIMILAIRES DÉTECTÉS
+                💡 PARCOURS SIMILAIRES DÉTECTÉS
               </Text>
             </View>
             <Text className="text-gray-400 text-sm mb-3">
@@ -72,11 +159,13 @@ export default function SelectRouteScreen({ route, navigation }) {
                 key={r.id}
                 className="bg-accent-cyan/10 rounded-2xl p-4 mb-3 border border-accent-cyan/20"
                 onPress={() => handleSelectRoute(r)}
+                onLongPress={() => handleLongPress(r)}
+                delayLongPress={500}
               >
                 <View className="flex-row items-center justify-between mb-2">
                   <View className="flex-1">
                     <Text className="text-white text-lg font-bold">
-                      {getTerrainIcon(r.terrain)} <Text>{r.name}</Text>
+                      {getTerrainIcon(r.terrain)} {r.name}
                     </Text>
                     <Text className="text-gray-400 text-sm">
                       ~{r.distance} km • {r.terrain}
@@ -89,7 +178,7 @@ export default function SelectRouteScreen({ route, navigation }) {
 
                 <View className="bg-primary-dark rounded-lg p-3 mt-2">
                   <Text className="text-gray-400 text-xs">
-                    Dernière course : données à venir
+                    Appuie longuement pour gérer ce parcours
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -101,7 +190,7 @@ export default function SelectRouteScreen({ route, navigation }) {
         {routes.length > 0 && (
           <View className="mb-6">
             <Text className="text-white text-lg font-bold mb-3">
-              <Text>📂 </Text>TOUS LES PARCOURS
+              📂 TOUS LES PARCOURS
             </Text>
 
             {routes.map((r) => (
@@ -109,11 +198,13 @@ export default function SelectRouteScreen({ route, navigation }) {
                 key={r.id}
                 className="bg-primary-navy rounded-2xl p-4 mb-3"
                 onPress={() => handleSelectRoute(r)}
+                onLongPress={() => handleLongPress(r)}
+                delayLongPress={500}
               >
                 <View className="flex-row items-center justify-between">
                   <View className="flex-1">
                     <Text className="text-white font-semibold">
-                      {getTerrainIcon(r.terrain)} <Text>{r.name}</Text>
+                      {getTerrainIcon(r.terrain)} {r.name}
                     </Text>
                     <Text className="text-gray-400 text-sm">
                       {r.distance ? `~${r.distance} km • ` : ''}
@@ -135,7 +226,7 @@ export default function SelectRouteScreen({ route, navigation }) {
           <View className="flex-row items-center justify-center">
             <Ionicons name="add-circle" size={24} color="#0a0e27" />
             <Text className="text-primary-dark text-lg font-bold ml-2">
-              <Text>➕ </Text>CRÉER UN NOUVEAU PARCOURS
+              ➕ CRÉER UN NOUVEAU PARCOURS
             </Text>
           </View>
         </TouchableOpacity>
@@ -149,6 +240,13 @@ export default function SelectRouteScreen({ route, navigation }) {
             Pas de parcours
           </Text>
         </TouchableOpacity>
+
+        {/* Modal custom */}
+        <CustomModal
+          visible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          {...modalConfig}
+        />
       </View>
     </ScrollView>
   );

@@ -2,12 +2,17 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useEffect, useState } from 'react';
 import { db } from '../database/database';
 import { Ionicons } from '@expo/vector-icons';
+import CustomModal from '../components/CustomModal';
 
 export default function RoutineDetailScreen({ route, navigation }) {
   const { routineId } = route.params;
   const [routine, setRoutine] = useState(null);
   const [exercises, setExercises] = useState([]);
   const [warmupDuration, setWarmupDuration] = useState(0); // 0 = pas d'échauffement
+  
+  // États pour le modal
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState({});
 
   useEffect(() => {
     loadRoutineDetails();
@@ -79,6 +84,56 @@ export default function RoutineDetailScreen({ route, navigation }) {
         warmupDuration: 0
       });
     }
+  };
+
+  const handleModifyRoutine = () => {
+    navigation.navigate('EditRoutine', { routineId });
+  };
+
+  const handleDeleteRoutine = () => {
+    setModalConfig({
+      title: '🗑️ Supprimer cette routine ?',
+      message: `Êtes-vous sûr de vouloir supprimer "${routine.name}" ?\n\nCette action est irréversible.`,
+      icon: 'trash',
+      iconColor: '#ff4444',
+      buttons: [
+        { 
+          text: 'Annuler', 
+          onPress: () => {} 
+        },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Supprimer les exercices de la routine
+              await db.runAsync('DELETE FROM routine_exercises WHERE routine_id = ?', [routineId]);
+              
+              // Supprimer la routine
+              await db.runAsync('DELETE FROM routines WHERE id = ?', [routineId]);
+              
+              console.log('✅ Routine supprimée');
+              
+              // Retour à la liste des routines
+              navigation.goBack();
+            } catch (error) {
+              console.error('❌ Erreur suppression routine:', error);
+              setModalConfig({
+                title: 'Erreur',
+                message: 'Impossible de supprimer la routine',
+                icon: 'alert-circle',
+                iconColor: '#ff4444',
+                buttons: [
+                  { text: 'OK', style: 'primary', onPress: () => {} }
+                ]
+              });
+              setModalVisible(true);
+            }
+          }
+        }
+      ]
+    });
+    setModalVisible(true);
   };
 
   if (!routine) {
@@ -208,8 +263,6 @@ export default function RoutineDetailScreen({ route, navigation }) {
                   {exercise.sets} séries • {exercise.rest_time}s repos
                 </Text>
               </View>
-
-              
             </View>
           ))}
         </View>
@@ -232,7 +285,7 @@ export default function RoutineDetailScreen({ route, navigation }) {
 
         {/* Bouton commencer */}
         <TouchableOpacity
-          className="bg-accent-cyan rounded-2xl p-4 items-center"
+          className="bg-accent-cyan rounded-2xl p-4 items-center mb-3"
           onPress={startWorkout}
         >
           <View className="flex-row items-center">
@@ -248,15 +301,38 @@ export default function RoutineDetailScreen({ route, navigation }) {
           )}
         </TouchableOpacity>
 
-        {/* Bouton modifier (TODO) */}
+        {/* Bouton modifier */}
         <TouchableOpacity
-          className="bg-primary-navy rounded-2xl p-3 items-center mt-3"
-          onPress={() => {/* TODO: Modifier routine */}}
+          className="bg-primary-navy rounded-2xl p-3 items-center mb-3"
+          onPress={handleModifyRoutine}
         >
-          <Text className="text-gray-400 font-semibold">
-            ✏️ Modifier la séance
-          </Text>
+          <View className="flex-row items-center">
+            <Ionicons name="create-outline" size={20} color="#00f5ff" />
+            <Text className="text-accent-cyan font-semibold ml-2">
+              ✏️ Modifier la séance
+            </Text>
+          </View>
         </TouchableOpacity>
+
+        {/* Bouton supprimer */}
+        <TouchableOpacity
+          className="bg-danger/10 rounded-2xl p-3 items-center border border-danger/30"
+          onPress={handleDeleteRoutine}
+        >
+          <View className="flex-row items-center">
+            <Ionicons name="trash-outline" size={20} color="#ff4444" />
+            <Text className="text-danger font-semibold ml-2">
+              🗑️ Supprimer la routine
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* Modal custom */}
+        <CustomModal
+          visible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          {...modalConfig}
+        />
       </View>
     </ScrollView>
   );

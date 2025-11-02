@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import RoutineListScreen from './RoutineListScreen';
@@ -22,40 +22,135 @@ const Stack = createNativeStackNavigator();
 
 function TrainingHome({ navigation }) {
   return (
-    <View className="flex-1 bg-primary-dark justify-center items-center p-6">
-      <Text className="text-white text-3xl font-bold mb-8">
-        💪 Entraînement
-      </Text>
+    <View style={{ flex: 1, backgroundColor: '#0a1628' }}>
+      <ScrollView style={{ flex: 1 }}>
+        <View style={{ padding: 24 }}>
+          {/* Titre */}
+          <Text style={{ 
+            color: '#f5f5f0', 
+            fontSize: 32, 
+            fontWeight: 'bold', 
+            marginBottom: 8 
+          }}>
+            💪 Entraînement
+          </Text>
+          <Text style={{ 
+            color: '#a8a8a0', 
+            fontSize: 16, 
+            marginBottom: 32 
+          }}>
+            Choisis ton type d'activité
+          </Text>
 
-      <TouchableOpacity
-        className="bg-accent-cyan rounded-2xl p-6 w-full mb-4"
-        onPress={() => navigation.navigate('RoutineList')}
-      >
-        <View className="items-center">
-          <Ionicons name="barbell" size={48} color="#0a0e27" />
-          <Text className="text-primary-dark text-2xl font-bold mt-3">
-            MUSCULATION
-          </Text>
-          <Text className="text-primary-dark/70 mt-1">
-            Séances de force
-          </Text>
-        </View>
-      </TouchableOpacity>
+          {/* Carte Musculation */}
+          <TouchableOpacity
+            style={{
+              backgroundColor: 'rgba(0, 245, 255, 0.15)',
+              borderRadius: 24,
+              padding: 24,
+              marginBottom: 16,
+              borderWidth: 1,
+              borderColor: 'rgba(0, 245, 255, 0.3)'
+            }}
+            onPress={() => navigation.navigate('RoutineList')}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <View style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 28,
+                    backgroundColor: '#00f5ff',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 16
+                  }}>
+                    <Ionicons name="barbell" size={32} color="#0a0e27" />
+                  </View>
+                  <View>
+                    <Text style={{ 
+                      color: '#f5f5f0', 
+                      fontSize: 24, 
+                      fontWeight: 'bold' 
+                    }}>
+                      MUSCULATION
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={28} color="#00f5ff" />
+            </View>
+          </TouchableOpacity>
 
-      <TouchableOpacity
-        className="bg-accent-purple rounded-2xl p-6 w-full"
-        onPress={() => {/* TODO: Course */ }}
-      >
-        <View className="items-center">
-          <Ionicons name="walk" size={48} color="#ffffff" />
-          <Text className="text-white text-2xl font-bold mt-3">
-            COURSE À PIED
-          </Text>
-          <Text className="text-white/70 mt-1">
-            Cardio & endurance
-          </Text>
+          {/* Carte Course */}
+          <TouchableOpacity
+            style={{
+              backgroundColor: 'rgba(176, 38, 255, 0.15)',
+              borderRadius: 24,
+              padding: 24,
+              borderWidth: 1,
+              borderColor: 'rgba(176, 38, 255, 0.3)'
+            }}
+            onPress={() => navigation.navigate('LogRun')}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <View style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 28,
+                    backgroundColor: '#b026ff',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 16
+                  }}>
+                    <Ionicons name="walk" size={32} color="#ffffff" />
+                  </View>
+                  <View>
+                    <Text style={{ 
+                      color: '#f5f5f0', 
+                      fontSize: 24, 
+                      fontWeight: 'bold' 
+                    }}>
+                      COURSE À PIED
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={28} color="#b026ff" />
+            </View>
+          </TouchableOpacity>
+
+          {/* Info supplémentaire (optionnel) */}
+          <View style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            borderRadius: 16,
+            padding: 16,
+            marginTop: 24,
+            borderWidth: 1,
+            borderColor: 'rgba(255, 255, 255, 0.1)'
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <Ionicons name="information-circle" size={20} color="#00f5ff" />
+              <Text style={{ 
+                color: '#00f5ff', 
+                fontSize: 14, 
+                fontWeight: 'bold',
+                marginLeft: 8
+              }}>
+                💡 ASTUCE
+              </Text>
+            </View>
+            <Text style={{ color: '#a8a8a0', fontSize: 14 }}>
+              Choisis "Musculation" pour accéder à tes routines d'entraînement, ou "Course" pour enregistrer une sortie running.
+            </Text>
+          </View>
         </View>
-      </TouchableOpacity>
+      </ScrollView>
     </View>
   );
 }

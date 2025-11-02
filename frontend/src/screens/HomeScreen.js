@@ -376,36 +376,6 @@ export default function HomeScreen({ navigation }) {
             ))}
           </View>
 
-          {/* Boutons d'action */}
-          <TouchableOpacity
-            style={{
-              backgroundColor: '#d4af37',
-              borderRadius: 16,
-              padding: 20,
-              marginBottom: 12
-            }}
-            onPress={() => navigation.navigate('Entraînement', { screen: 'RoutineList' })}
-          >
-            <Text style={{ color: '#1a1d2e', textAlign: 'center', fontSize: 18, fontWeight: 'bold' }}>
-              ▶ COMMENCER UNE SÉANCE
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
-              borderRadius: 16,
-              padding: 16,
-              borderWidth: 1,
-              borderColor: 'rgba(255, 255, 255, 0.1)'
-            }}
-            onPress={() => navigation.navigate('Entraînement', { screen: 'RoutineList' })}
-          >
-            <Text style={{ color: '#a8a8a0', textAlign: 'center', fontWeight: '600' }}>
-              📋 Mes routines
-            </Text>
-          </TouchableOpacity>
-
         </View>
       </ScrollView>
     </View>
