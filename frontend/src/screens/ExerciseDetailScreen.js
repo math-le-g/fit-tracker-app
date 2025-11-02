@@ -1,253 +1,202 @@
-import { View, Text, ScrollView, Dimensions } from 'react-native';
-import { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useState, useEffect } from 'react';
 import { db } from '../database/database';
-import { LineChart } from 'react-native-chart-kit';
 import { Ionicons } from '@expo/vector-icons';
 
+export default function ExerciseDetailScreen({ route, navigation }) {
+  const { exerciseId } = route.params;
+  const [exercise, setExercise] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [stats, setStats] = useState(null);
 
-export default function ExerciseDetailScreen({ route }) {
-    const { exerciseId, exerciseName } = route.params;
-    const [history, setHistory] = useState([]);
-    const [stats, setStats] = useState(null);
+  useEffect(() => {
+    loadExerciseDetails();
+  }, []);
 
-    useEffect(() => {
-        loadExerciseHistory();
-    }, []);
+  const loadExerciseDetails = async () => {
+    try {
+      // Charger l'exercice
+      const ex = await db.getFirstAsync(
+        'SELECT * FROM exercises WHERE id = ?',
+        [exerciseId]
+      );
+      setExercise(ex);
 
-    const loadExerciseHistory = async () => {
-        try {
-            const sets = await db.getAllAsync(`
-        SELECT s.*, w.date 
+      // Charger historique (10 dernières séances)
+      const sets = await db.getAllAsync(`
+        SELECT 
+          s.*,
+          w.date,
+          w.id as workout_id
         FROM sets s
         JOIN workouts w ON s.workout_id = w.id
         WHERE s.exercise_id = ?
-        ORDER BY w.date ASC
+        ORDER BY w.date DESC
+        LIMIT 30
       `, [exerciseId]);
 
-            if (sets.length === 0) {
-                setHistory([]);
-                return;
-            }
-
-            const sessionMap = {};
-            sets.forEach(set => {
-                const dateKey = new Date(set.date).toLocaleDateString();
-                if (!sessionMap[dateKey]) {
-                    sessionMap[dateKey] = {
-                        date: set.date,
-                        maxWeight: set.weight,
-                        maxReps: set.reps,
-                        totalVolume: set.weight * set.reps,
-                        sets: 1
-                    };
-                } else {
-                    if (set.weight > sessionMap[dateKey].maxWeight) {
-                        sessionMap[dateKey].maxWeight = set.weight;
-                        sessionMap[dateKey].maxReps = set.reps;
-                    }
-                    sessionMap[dateKey].totalVolume += set.weight * set.reps;
-                    sessionMap[dateKey].sets++;
-                }
-            });
-
-            const historyData = Object.values(sessionMap);
-            setHistory(historyData);
-
-            const allWeights = historyData.map(h => h.maxWeight);
-            const allVolumes = historyData.map(h => h.totalVolume);
-
-            const currentWeight = allWeights[allWeights.length - 1];
-            const previousWeight = allWeights[allWeights.length - 2] || currentWeight;
-            const bestWeight = Math.max(...allWeights);
-            const avgWeight = allWeights.reduce((sum, w) => sum + w, 0) / allWeights.length;
-            const totalVolume = allVolumes.reduce((sum, v) => sum + v, 0);
-
-            const progression = currentWeight - previousWeight;
-            const progressionPercent = previousWeight > 0 ? ((currentWeight - previousWeight) / previousWeight * 100) : 0;
-
-            setStats({
-                currentWeight,
-                bestWeight,
-                avgWeight,
-                totalVolume,
-                totalSessions: historyData.length,
-                progression,
-                progressionPercent
-            });
-
-        } catch (error) {
-            console.error('Erreur chargement historique exercice:', error);
+      // Grouper par séance
+      const grouped = {};
+      sets.forEach(set => {
+        const date = new Date(set.date).toLocaleDateString();
+        if (!grouped[date]) {
+          grouped[date] = {
+            date: set.date,
+            workout_id: set.workout_id,
+            sets: []
+          };
         }
-    };
+        grouped[date].sets.push(set);
+      });
 
-    const formatDate = (dateString) => {
-        const date = new Date(dateString);
-        return `${date.getDate()}/${date.getMonth() + 1}`;
-    };
+      setHistory(Object.values(grouped));
 
-    const getProgressionColor = () => {
-        if (!stats) return 'text-gray-400';
-        if (stats.progression > 0) return 'text-success';
-        if (stats.progression < 0) return 'text-danger';
-        return 'text-gray-400';
-    };
+      // Calculer stats
+      if (sets.length > 0) {
+        const maxWeight = Math.max(...sets.map(s => s.weight));
+        const maxReps = Math.max(...sets.map(s => s.reps));
+        const maxVolume = Math.max(...sets.map(s => s.weight * s.reps));
+        const totalVolume = sets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
+        const totalSets = sets.length;
 
-    const getProgressionIcon = () => {
-        if (!stats) return 'remove';
-        if (stats.progression > 0) return 'trending-up';
-        if (stats.progression < 0) return 'trending-down';
-        return 'remove';
-    };
-
-    const getStatusLabel = () => {
-        if (!stats) return 'Chargement...';
-        if (stats.progression > 0) return '📈 EN PROGRESSION';
-        if (stats.progression < 0) return '📉 EN RÉGRESSION';
-        return '➡️ STABLE';
-    };
-
-    if (history.length === 0) {
-        return (
-            <ScrollView className="flex-1 bg-primary-dark">
-                <View className="p-6">
-                    <Text className="text-white text-2xl font-bold mb-4">
-                        {exerciseName}
-                    </Text>
-                    <View className="bg-primary-navy rounded-2xl p-6">
-                        <Text className="text-gray-400 text-center">
-                            Aucune donnée disponible pour cet exercice.
-                            {'\n\n'}
-                            Fais une séance pour voir ta progression !
-                        </Text>
-                    </View>
-                </View>
-            </ScrollView>
-        );
+        setStats({
+          maxWeight,
+          maxReps,
+          maxVolume,
+          totalVolume,
+          totalSets,
+          sessions: Object.keys(grouped).length
+        });
+      }
+    } catch (error) {
+      console.error('Erreur chargement détails exercice:', error);
     }
+  };
 
-    const chartData = history.map((h, index) => ({
-        x: index + 1,
-        y: h.maxWeight,
-        label: formatDate(h.date)
-    }));
-
-    const screenWidth = Dimensions.get('window').width;
-
+  if (!exercise) {
     return (
-        <ScrollView className="flex-1 bg-primary-dark">
-            <View className="p-6">
-                <Text className="text-white text-2xl font-bold mb-2">
-                    {exerciseName}
-                </Text>
-                <Text className="text-gray-400 mb-6">
-                    Historique et progression
-                </Text>
-
-                {stats && (
-                    <View className="bg-primary-navy rounded-2xl p-6 mb-6">
-                        <View className="flex-row items-center mb-4">
-                            <Ionicons name={getProgressionIcon()} size={24} color={stats.progression > 0 ? '#00ff88' : stats.progression < 0 ? '#ff4444' : '#6b7280'} />
-                            <Text className={`text-xl font-bold ml-2 ${getProgressionColor()}`}>
-                                {getStatusLabel()}
-                            </Text>
-                        </View>
-
-                        <View className="flex-row justify-between mb-2">
-                            <Text className="text-gray-400">Charge actuelle :</Text>
-                            <Text className="text-white font-bold">{stats.currentWeight}kg</Text>
-                        </View>
-
-                        <View className="flex-row justify-between mb-2">
-                            <Text className="text-gray-400">Record personnel :</Text>
-                            <Text className="text-success font-bold">{stats.bestWeight}kg 🏆</Text>
-                        </View>
-
-                        <View className="flex-row justify-between mb-2">
-                            <Text className="text-gray-400">Charge moyenne :</Text>
-                            <Text className="text-white font-bold">{stats.avgWeight.toFixed(1)}kg</Text>
-                        </View>
-
-                        {stats.progression !== 0 && (
-                            <View className="mt-4 pt-4 border-t border-primary-dark">
-                                <View className="flex-row justify-between">
-                                    <Text className="text-gray-400">Dernière progression :</Text>
-                                    <Text className={`font-bold ${getProgressionColor()}`}>
-                                        {stats.progression > 0 ? '+' : ''}{stats.progression}kg ({stats.progressionPercent.toFixed(1)}%)
-                                    </Text>
-                                </View>
-                            </View>
-                        )}
-                    </View>
-                )}
-
-                {/* Graphique */}
-                <View className="bg-primary-navy rounded-2xl p-4 mb-6">
-                    <Text className="text-white text-lg font-bold mb-4">
-                        <Text>📈 </Text>ÉVOLUTION CHARGE MAX
-                    </Text>
-
-                    <LineChart
-                        data={{
-                            labels: history.map((h, i) => i % Math.floor(history.length / 5) === 0 ? formatDate(h.date) : ''),
-                            datasets: [{
-                                data: history.map(h => h.maxWeight)
-                            }]
-                        }}
-                        width={Dimensions.get('window').width - 80}
-                        height={220}
-                        chartConfig={{
-                            backgroundColor: '#1a1f3a',
-                            backgroundGradientFrom: '#1a1f3a',
-                            backgroundGradientTo: '#1a1f3a',
-                            decimalPlaces: 0,
-                            color: (opacity = 1) => `rgba(0, 245, 255, ${opacity})`,
-                            labelColor: (opacity = 1) => `rgba(156, 163, 175, ${opacity})`,
-                            style: {
-                                borderRadius: 16
-                            },
-                            propsForDots: {
-                                r: '4',
-                                strokeWidth: '2',
-                                stroke: '#00f5ff'
-                            },
-                            propsForBackgroundLines: {
-                                strokeDasharray: '',
-                                stroke: '#374151',
-                                strokeWidth: 1
-                            }
-                        }}
-                        bezier
-                        style={{
-                            marginVertical: 8,
-                            borderRadius: 16
-                        }}
-                    />
-
-                    <Text className="text-gray-400 text-xs text-center mt-2">
-                        Séances (de la plus ancienne à la plus récente)
-                    </Text>
-                </View>
-
-                {stats && (
-                    <View className="bg-primary-navy rounded-2xl p-6">
-                        <Text className="text-white text-lg font-bold mb-4">
-                            📊 STATISTIQUES DÉTAILLÉES
-                        </Text>
-
-                        <View className="flex-row justify-between mb-2">
-                            <Text className="text-gray-400">• Séances totales :</Text>
-                            <Text className="text-white font-bold">{stats.totalSessions}</Text>
-                        </View>
-
-                        <View className="flex-row justify-between">
-                            <Text className="text-gray-400">• Volume total :</Text>
-                            <Text className="text-success font-bold">
-                                {stats.totalVolume.toLocaleString()}kg
-                            </Text>
-                        </View>
-                    </View>
-                )}
-            </View>
-        </ScrollView>
+      <View className="flex-1 bg-primary-dark items-center justify-center">
+        <Text className="text-white">Chargement...</Text>
+      </View>
     );
+  }
+
+  return (
+    <View className="flex-1 bg-primary-dark">
+      <ScrollView>
+        <View className="p-6">
+          {/* En-tête */}
+          <View className="mb-6">
+            <Text className="text-white text-3xl font-bold mb-2">
+              {exercise.name}
+            </Text>
+            <View className="flex-row items-center gap-4">
+              <View className="flex-row items-center">
+                <Ionicons name="fitness" size={18} color="#6b7280" />
+                <Text className="text-gray-400 ml-1">{exercise.muscle_group}</Text>
+              </View>
+              <View className="flex-row items-center">
+                <Ionicons name="barbell" size={18} color="#6b7280" />
+                <Text className="text-gray-400 ml-1">{exercise.equipment}</Text>
+              </View>
+              {exercise.is_custom && (
+                <View className="bg-accent-cyan rounded-full px-3 py-1">
+                  <Text className="text-primary-dark text-xs font-bold">PERSONNALISÉ</Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Stats */}
+          {stats && (
+            <View className="bg-primary-navy rounded-2xl p-6 mb-6">
+              <Text className="text-white text-xl font-bold mb-4">📊 STATISTIQUES</Text>
+              
+              <View className="flex-row justify-between mb-3">
+                <Text className="text-gray-400">Séances réalisées :</Text>
+                <Text className="text-white font-bold">{stats.sessions}</Text>
+              </View>
+
+              <View className="flex-row justify-between mb-3">
+                <Text className="text-gray-400">Séries totales :</Text>
+                <Text className="text-white font-bold">{stats.totalSets}</Text>
+              </View>
+
+              <View className="flex-row justify-between mb-3">
+                <Text className="text-gray-400">Charge max :</Text>
+                <Text className="text-success font-bold">{stats.maxWeight} kg</Text>
+              </View>
+
+              <View className="flex-row justify-between mb-3">
+                <Text className="text-gray-400">Reps max :</Text>
+                <Text className="text-success font-bold">{stats.maxReps}</Text>
+              </View>
+
+              <View className="flex-row justify-between mb-3">
+                <Text className="text-gray-400">Volume max (1 série) :</Text>
+                <Text className="text-success font-bold">{stats.maxVolume} kg</Text>
+              </View>
+
+              <View className="flex-row justify-between pt-3 border-t border-primary-dark">
+                <Text className="text-gray-400">Volume total :</Text>
+                <Text className="text-accent-cyan font-bold">{stats.totalVolume.toLocaleString()} kg</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Historique */}
+          <View className="bg-primary-navy rounded-2xl p-6 mb-6">
+            <Text className="text-white text-xl font-bold mb-4">
+              📅 HISTORIQUE ({history.length} séances)
+            </Text>
+
+            {history.length > 0 ? (
+              history.map((session, index) => (
+                <View
+                  key={session.workout_id}
+                  className={`py-3 ${index < history.length - 1 ? 'border-b border-primary-dark' : ''}`}
+                >
+                  <Text className="text-gray-400 text-sm mb-2">
+                    {new Date(session.date).toLocaleDateString('fr-FR', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric'
+                    })}
+                  </Text>
+                  {session.sets.map((set, setIndex) => (
+                    <Text key={setIndex} className="text-white">
+                      • Série {set.set_number}: {set.weight}kg × {set.reps} reps
+                    </Text>
+                  ))}
+                </View>
+              ))
+            ) : (
+              <Text className="text-gray-400 text-center">
+                Aucune séance enregistrée pour cet exercice
+              </Text>
+            )}
+          </View>
+
+          {/* Description / Notes (si custom) */}
+          {exercise.is_custom && exercise.notes && (
+            <View className="bg-primary-navy rounded-2xl p-6 mb-6">
+              <Text className="text-white text-xl font-bold mb-3">📝 NOTES</Text>
+              <Text className="text-gray-400">{exercise.notes}</Text>
+            </View>
+          )}
+
+          {/* Bouton retour */}
+          <TouchableOpacity
+            className="bg-primary-navy rounded-2xl p-4"
+            onPress={() => navigation.goBack()}
+          >
+            <Text className="text-gray-400 text-center font-semibold">
+              ← Retour
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
+  );
 }

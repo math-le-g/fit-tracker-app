@@ -65,130 +65,197 @@ export default function BadgesScreen() {
   }, {});
 
   return (
-    <ScrollView className="flex-1 bg-primary-dark">
-      <View className="p-6">
-        {/* Titre */}
-        <Text className="text-white text-3xl font-bold mb-2">
-          <Text>🏆 </Text>
-          <Text>Badges</Text>
-        </Text>
-        <Text className="text-gray-400 mb-6">
-          <Text>Collection de tes accomplissements</Text>
-        </Text>
+    <View style={{ flex: 1, backgroundColor: '#0a1628' }}>
+      <ScrollView style={{ flex: 1 }}>
+        <View style={{ padding: 24 }}>
+          {/* Sous-titre */}
+          <Text style={{ color: '#a8a8a0', fontSize: 16, marginBottom: 24 }}>
+            Collection de tes accomplissements
+          </Text>
 
-        {/* Stats */}
-        <View className="bg-primary-navy rounded-2xl p-6 mb-6">
-          <View className="flex-row items-center justify-between mb-4">
-            <View>
-              <Text className="text-gray-400 text-sm">PROGRESSION</Text>
-              <Text className="text-white text-3xl font-bold">
-                {stats.unlocked}/{stats.total}
-              </Text>
-            </View>
-
-            <View className="items-center">
-              <View className="w-24 h-24 rounded-full bg-primary-dark items-center justify-center border-4 border-accent-cyan">
-                <Text className="text-accent-cyan text-2xl font-bold">
-                  {stats.percentage}%
+          {/* Stats progression */}
+          <View style={{
+            backgroundColor: 'rgba(212, 175, 55, 0.1)',
+            borderRadius: 24,
+            padding: 24,
+            marginBottom: 20,
+            borderWidth: 1,
+            borderColor: 'rgba(212, 175, 55, 0.3)'
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <View>
+                <Text style={{ color: '#a8a8a0', fontSize: 14 }}>PROGRESSION</Text>
+                <Text style={{ color: '#f5f5f0', fontSize: 32, fontWeight: 'bold' }}>
+                  {stats.unlocked}/{stats.total}
                 </Text>
               </View>
+
+              <View style={{ alignItems: 'center' }}>
+                <View style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: 40,
+                  backgroundColor: 'rgba(10, 14, 39, 0.8)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 4,
+                  borderColor: '#d4af37'
+                }}>
+                  <Text style={{ color: '#d4af37', fontSize: 24, fontWeight: 'bold' }}>
+                    {stats.percentage}%
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={{
+              width: '100%',
+              height: 12,
+              backgroundColor: 'rgba(10, 14, 39, 0.8)',
+              borderRadius: 6,
+              overflow: 'hidden'
+            }}>
+              <View style={{
+                width: `${stats.percentage}%`,
+                height: '100%',
+                backgroundColor: '#d4af37',
+                borderRadius: 6
+              }} />
             </View>
           </View>
 
-          <View className="bg-primary-dark rounded-full h-3 overflow-hidden">
-            <View className="bg-accent-cyan h-full" style={{ width: `${stats.percentage}%` }} />
-          </View>
-        </View>
-
-        {/* Filtres */}
-        <View className="flex-row gap-2 mb-6">
-          {['all', 'unlocked', 'locked'].map((f) => (
-            <TouchableOpacity
-              key={f}
-              className={`flex-1 rounded-xl p-3 ${filter === f ? 'bg-accent-cyan' : 'bg-primary-navy'}`}
-              onPress={() => setFilter(f)}
-            >
-              <Text className={`text-center font-bold ${filter === f ? 'text-primary-dark' : 'text-gray-400'}`}>
-                {f === 'all' ? 'Tous' : f === 'unlocked' ? 'Débloqués' : 'Verrouillés'}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Badges par catégorie */}
-        {Object.entries(groupedBadges).map(([category, categoryBadges]) => (
-          <View key={category} className="mb-6">
-            <Text className="text-white text-xl font-bold mb-3">
-              <Text>{getCategoryEmoji(category)} </Text>
-              <Text>{getCategoryText(category)}</Text>
-            </Text>
-
-            {categoryBadges.map((badge) => (
-              <View
-                key={badge.id}
-                className={`rounded-2xl p-4 mb-3 ${
-                  badge.unlocked
-                    ? 'bg-accent-cyan/10 border border-accent-cyan'
-                    : 'bg-primary-navy opacity-50'
-                }`}
+          {/* Filtres */}
+          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20 }}>
+            {['all', 'unlocked', 'locked'].map((f) => (
+              <TouchableOpacity
+                key={f}
+                style={{
+                  flex: 1,
+                  backgroundColor: filter === f ? 'rgba(0, 245, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                  borderRadius: 12,
+                  padding: 12,
+                  borderWidth: 1,
+                  borderColor: filter === f ? 'rgba(0, 245, 255, 0.5)' : 'rgba(255, 255, 255, 0.1)'
+                }}
+                onPress={() => setFilter(f)}
               >
-                <View className="flex-row items-center">
-                  <View className={`${badge.unlocked ? 'bg-accent-cyan' : 'bg-primary-dark'} w-16 h-16 rounded-full items-center justify-center`}>
-                    <Text className="text-4xl">{badge.icon || '🏅'}</Text>
-                  </View>
-
-                  <View className="flex-1 ml-4">
-                    <Text className={`text-lg font-bold ${badge.unlocked ? 'text-white' : 'text-gray-500'}`}>
-                      {badge.name || ''}
-                    </Text>
-
-                    <Text className="text-gray-400 text-sm mb-2">
-                      {badge.description || ''}
-                    </Text>
-
-                    {!badge.unlocked && (
-                      <View>
-                        <View className="flex-row items-center mb-1">
-                          <Text className="text-gray-400 text-xs">
-                            {`${badge.progress}/${badge.target}`}
-                          </Text>
-                        </View>
-                        <View className="bg-primary-dark rounded-full h-2 overflow-hidden">
-                          <View
-                            className="bg-gray-600 h-full"
-                            style={{ width: `${Math.min((badge.progress / badge.target) * 100, 100)}%` }}
-                          />
-                        </View>
-                      </View>
-                    )}
-
-                    {badge.unlocked && badge.unlocked_at && (
-                      <Text className="text-accent-cyan text-xs">
-                        {`✓ Débloqué le ${new Date(badge.unlocked_at).toLocaleDateString()}`}
-                      </Text>
-                    )}
-                  </View>
-
-                  {badge.unlocked ? (
-                    <Ionicons name="checkmark-circle" size={32} color="#00f5ff" />
-                  ) : (
-                    <View />
-                  )}
-                </View>
-              </View>
+                <Text style={{
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  color: filter === f ? '#00f5ff' : '#a8a8a0'
+                }}>
+                  {f === 'all' ? 'Tous' : f === 'unlocked' ? 'Débloqués' : 'Verrouillés'}
+                </Text>
+              </TouchableOpacity>
             ))}
           </View>
-        ))}
 
-        {badges.length === 0 && (
-          <View className="bg-primary-navy rounded-2xl p-6">
-            <Text className="text-gray-400 text-center">
-              Aucun badge dans cette catégorie
-            </Text>
-          </View>
-        )}
-      </View>
-    </ScrollView>
+          {/* Badges par catégorie */}
+          {Object.entries(groupedBadges).map(([category, categoryBadges]) => (
+            <View key={category} style={{ marginBottom: 20 }}>
+              <Text style={{ color: '#f5f5f0', fontSize: 18, fontWeight: 'bold', marginBottom: 12 }}>
+                {getCategoryEmoji(category)} {getCategoryText(category)}
+              </Text>
+
+              {categoryBadges.map((badge) => (
+                <View
+                  key={badge.id}
+                  style={{
+                    backgroundColor: badge.unlocked 
+                      ? 'rgba(0, 245, 255, 0.1)' 
+                      : 'rgba(255, 255, 255, 0.05)',
+                    borderRadius: 16,
+                    padding: 16,
+                    marginBottom: 12,
+                    borderWidth: 1,
+                    borderColor: badge.unlocked 
+                      ? 'rgba(0, 245, 255, 0.3)' 
+                      : 'rgba(255, 255, 255, 0.1)',
+                    opacity: badge.unlocked ? 1 : 0.6
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 28,
+                      backgroundColor: badge.unlocked ? '#00f5ff' : 'rgba(10, 14, 39, 0.8)',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <Text style={{ fontSize: 32 }}>{badge.icon || '🏅'}</Text>
+                    </View>
+
+                    <View style={{ flex: 1, marginLeft: 16 }}>
+                      <Text style={{
+                        fontSize: 16,
+                        fontWeight: 'bold',
+                        color: badge.unlocked ? '#f5f5f0' : '#6b7280',
+                        marginBottom: 4
+                      }}>
+                        {badge.name || ''}
+                      </Text>
+
+                      <Text style={{ color: '#a8a8a0', fontSize: 14, marginBottom: 8 }}>
+                        {badge.description || ''}
+                      </Text>
+
+                      {!badge.unlocked && (
+                        <View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                            <Text style={{ color: '#a8a8a0', fontSize: 12 }}>
+                              {badge.progress}/{badge.target}
+                            </Text>
+                          </View>
+                          <View style={{
+                            backgroundColor: 'rgba(10, 14, 39, 0.8)',
+                            borderRadius: 4,
+                            height: 8,
+                            overflow: 'hidden'
+                          }}>
+                            <View
+                              style={{
+                                backgroundColor: '#6b7280',
+                                height: '100%',
+                                width: `${Math.min((badge.progress / badge.target) * 100, 100)}%`
+                              }}
+                            />
+                          </View>
+                        </View>
+                      )}
+
+                      {badge.unlocked && badge.unlocked_at && (
+                        <Text style={{ color: '#00f5ff', fontSize: 12 }}>
+                          ✓ Débloqué le {new Date(badge.unlocked_at).toLocaleDateString()}
+                        </Text>
+                      )}
+                    </View>
+
+                    {badge.unlocked && (
+                      <Ionicons name="checkmark-circle" size={28} color="#00f5ff" />
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+          ))}
+
+          {badges.length === 0 && (
+            <View style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              borderRadius: 16,
+              padding: 24,
+              borderWidth: 1,
+              borderColor: 'rgba(255, 255, 255, 0.1)'
+            }}>
+              <Text style={{ color: '#a8a8a0', textAlign: 'center' }}>
+                Aucun badge dans cette catégorie
+              </Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 

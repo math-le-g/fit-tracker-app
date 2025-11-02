@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { db } from '../database/database';
 import { Ionicons } from '@expo/vector-icons';
 import CustomModal from '../components/CustomModal';
@@ -14,9 +15,12 @@ export default function RoutineDetailScreen({ route, navigation }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState({});
 
-  useEffect(() => {
-    loadRoutineDetails();
-  }, []);
+  // ✅ Actualisation automatique quand on revient sur l'écran
+  useFocusEffect(
+    useCallback(() => {
+      loadRoutineDetails();
+    }, [])
+  );
 
   const loadRoutineDetails = async () => {
     try {

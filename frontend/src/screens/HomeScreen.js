@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { db } from '../database/database';
 
@@ -11,6 +11,7 @@ export default function HomeScreen({ navigation }) {
   const [weekActivities, setWeekActivities] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
 
+  // ✅ Actualisation automatique à chaque fois qu'on revient sur l'écran
   useFocusEffect(
     useCallback(() => {
       loadAllData();

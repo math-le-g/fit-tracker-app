@@ -25,19 +25,11 @@ function TrainingHome({ navigation }) {
     <View style={{ flex: 1, backgroundColor: '#0a1628' }}>
       <ScrollView style={{ flex: 1 }}>
         <View style={{ padding: 24 }}>
-          {/* Titre */}
-          <Text style={{ 
-            color: '#f5f5f0', 
-            fontSize: 32, 
-            fontWeight: 'bold', 
-            marginBottom: 8 
-          }}>
-            💪 Entraînement
-          </Text>
+          {/* Sous-titre uniquement */}
           <Text style={{ 
             color: '#a8a8a0', 
             fontSize: 16, 
-            marginBottom: 32 
+            marginBottom: 24 
           }}>
             Choisis ton type d'activité
           </Text>
