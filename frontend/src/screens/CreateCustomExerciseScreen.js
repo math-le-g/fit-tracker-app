@@ -9,7 +9,6 @@ export default function CreateCustomExerciseScreen({ navigation }) {
   const [name, setName] = useState('');
   const [muscleGroup, setMuscleGroup] = useState('');
   const [equipment, setEquipment] = useState('');
-  const [notes, setNotes] = useState('');
   const [showMuscleGroupPicker, setShowMuscleGroupPicker] = useState(false);
   const [showEquipmentPicker, setShowEquipmentPicker] = useState(false);
 
@@ -78,9 +77,10 @@ export default function CreateCustomExerciseScreen({ navigation }) {
     }
 
     try {
+      // VERSION SANS LA COLONNE NOTES
       await db.runAsync(
-        'INSERT INTO exercises (name, muscle_group, equipment, is_custom, notes) VALUES (?, ?, ?, ?, ?)',
-        [name.trim(), muscleGroup, equipment, 1, notes.trim()]
+        'INSERT INTO exercises (name, muscle_group, equipment, is_custom, default_rest_time) VALUES (?, ?, ?, ?, ?)',
+        [name.trim(), muscleGroup, equipment, 1, 90]
       );
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -175,21 +175,6 @@ export default function CreateCustomExerciseScreen({ navigation }) {
                 </Text>
               </View>
             </View>
-          </View>
-
-          {/* Notes (optionnel) */}
-          <View className="mb-6">
-            <Text className="text-white text-lg font-bold mb-2">NOTES (optionnel)</Text>
-            <TextInput
-              className="bg-primary-navy text-white rounded-xl p-4"
-              placeholder="Instructions, variantes, conseils..."
-              placeholderTextColor="#6b7280"
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
           </View>
 
           {/* Boutons */}

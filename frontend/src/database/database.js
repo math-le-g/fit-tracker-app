@@ -37,7 +37,8 @@ export const initDatabase = async () => {
         muscle_group TEXT NOT NULL,
         equipment TEXT,
         default_rest_time INTEGER DEFAULT 90,
-        is_custom INTEGER DEFAULT 0
+        is_custom INTEGER DEFAULT 0,
+        notes TEXT
       );
     `);
 

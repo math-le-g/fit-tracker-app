@@ -17,6 +17,7 @@ import EditRoutineScreen from './EditRoutineScreen';
 import CreateCustomExerciseScreen from './CreateCustomExerciseScreen';
 import ManageWorkoutExercisesScreen from './ManageWorkoutExercisesScreen';
 import SelectReplacementExerciseScreen from './SelectReplacementExerciseScreen';
+import EditExerciseScreen from './EditExerciseScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -26,10 +27,10 @@ function TrainingHome({ navigation }) {
       <ScrollView style={{ flex: 1 }}>
         <View style={{ padding: 24 }}>
           {/* Sous-titre uniquement */}
-          <Text style={{ 
-            color: '#a8a8a0', 
-            fontSize: 16, 
-            marginBottom: 24 
+          <Text style={{
+            color: '#a8a8a0',
+            fontSize: 16,
+            marginBottom: 24
           }}>
             Choisis ton type d'activité
           </Text>
@@ -62,10 +63,10 @@ function TrainingHome({ navigation }) {
                     <Ionicons name="barbell" size={32} color="#0a0e27" />
                   </View>
                   <View>
-                    <Text style={{ 
-                      color: '#f5f5f0', 
-                      fontSize: 24, 
-                      fontWeight: 'bold' 
+                    <Text style={{
+                      color: '#f5f5f0',
+                      fontSize: 24,
+                      fontWeight: 'bold'
                     }}>
                       MUSCULATION
                     </Text>
@@ -103,10 +104,10 @@ function TrainingHome({ navigation }) {
                     <Ionicons name="walk" size={32} color="#ffffff" />
                   </View>
                   <View>
-                    <Text style={{ 
-                      color: '#f5f5f0', 
-                      fontSize: 24, 
-                      fontWeight: 'bold' 
+                    <Text style={{
+                      color: '#f5f5f0',
+                      fontSize: 24,
+                      fontWeight: 'bold'
                     }}>
                       COURSE À PIED
                     </Text>
@@ -128,9 +129,9 @@ function TrainingHome({ navigation }) {
           }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
               <Ionicons name="information-circle" size={20} color="#00f5ff" />
-              <Text style={{ 
-                color: '#00f5ff', 
-                fontSize: 14, 
+              <Text style={{
+                color: '#00f5ff',
+                fontSize: 14,
                 fontWeight: 'bold',
                 marginLeft: 8
               }}>
@@ -254,6 +255,11 @@ export default function TrainingScreen() {
         name="SelectReplacementExercise"
         component={SelectReplacementExerciseScreen}
         options={{ title: 'Remplacer l\'exercice' }}
+      />
+      <Stack.Screen
+        name="EditExercise"
+        component={EditExerciseScreen}
+        options={{ title: 'Modifier l\'exercice' }}
       />
     </Stack.Navigator>
   );

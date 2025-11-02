@@ -260,7 +260,7 @@ export default function ExerciseScreen({
           </View>
         )}
 
-        {/* Bouton valider */}
+         {/* Bouton valider */}
         <TouchableOpacity
           className="bg-success rounded-2xl p-5 mb-4"
           onPress={handleValidate}
@@ -273,26 +273,17 @@ export default function ExerciseScreen({
           </View>
         </TouchableOpacity>
 
-        {/* Boutons secondaires */}
-        <View className="flex-row gap-2">
-          <TouchableOpacity
-            className="flex-1 bg-primary-navy rounded-xl p-3"
-            onPress={() => applySuggestion('repeat')}
-          >
-            <Text className="text-gray-400 text-center font-semibold">
-              = Répéter
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            className="flex-1 bg-primary-navy rounded-xl p-3"
-          >
-            <Text className="text-gray-400 text-center font-semibold">
-              📝 Note
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {/* Bouton répéter uniquement */}
+        <TouchableOpacity
+          className="bg-primary-navy rounded-xl p-3"
+          onPress={() => applySuggestion('repeat')}
+        >
+          <Text className="text-gray-400 text-center font-semibold">
+            = Répéter dernière perf
+          </Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
 }
+ 
