@@ -63,7 +63,8 @@ export default function RoutineListScreen({ navigation }) {
     r.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const muscleGroups = ['all', 'Pectoraux', 'Dos', 'Épaules', 'Bras', 'Jambes', 'Core'];
+  // ✅ FIX: Groupes musculaires corrigés
+  const muscleGroups = ['all', 'Pectoraux', 'Dos', 'Épaules', 'Biceps', 'Triceps', 'Abdominaux', 'Jambes'];
 
   const getTypeEmoji = (type) => {
     switch (type) {

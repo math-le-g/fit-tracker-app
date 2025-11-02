@@ -69,8 +69,16 @@ export default function EditRoutineScreen({ route, navigation }) {
     }
   };
 
-  const addExercise = (exercise) => {
-    if (!selectedExercises.find(e => e.id === exercise.id)) {
+  // ✅ FIX: Permettre de décocher les exercices
+  const toggleExercise = (exercise) => {
+    const isAlreadySelected = selectedExercises.find(e => e.id === exercise.id);
+    
+    if (isAlreadySelected) {
+      // Décocher : retirer de la liste
+      setSelectedExercises(selectedExercises.filter(e => e.id !== exercise.id));
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } else {
+      // Cocher : ajouter à la liste
       setSelectedExercises([...selectedExercises, {
         ...exercise,
         sets: 3,
@@ -188,7 +196,8 @@ export default function EditRoutineScreen({ route, navigation }) {
     return matchesSearch && matchesMuscle;
   });
 
-  const muscleGroups = ['all', 'Pectoraux', 'Dos', 'Épaules', 'Bras', 'Jambes', 'Core'];
+  // ✅ FIX: Groupes musculaires corrigés
+  const muscleGroups = ['all', 'Pectoraux', 'Dos', 'Épaules', 'Biceps', 'Triceps', 'Abdominaux', 'Jambes'];
 
   return (
     <View className="flex-1 bg-primary-dark">
@@ -248,14 +257,14 @@ export default function EditRoutineScreen({ route, navigation }) {
                   <Text className="text-gray-400 text-sm">{ex.muscle_group}</Text>
                 </View>
 
+                {/* Boutons réorganiser et supprimer */}
                 <View className="flex-row gap-2">
-                  {/* Boutons réorganiser */}
                   <TouchableOpacity
                     className="bg-primary-dark rounded-lg p-2"
                     onPress={() => moveExercise(index, -1)}
                     disabled={index === 0}
                   >
-                    <Ionicons name="chevron-up" size={20} color={index === 0 ? "#4b5563" : "#fff"} />
+                    <Ionicons name="chevron-up" size={16} color={index === 0 ? "#6b7280" : "#fff"} />
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -263,22 +272,21 @@ export default function EditRoutineScreen({ route, navigation }) {
                     onPress={() => moveExercise(index, 1)}
                     disabled={index === selectedExercises.length - 1}
                   >
-                    <Ionicons name="chevron-down" size={20} color={index === selectedExercises.length - 1 ? "#4b5563" : "#fff"} />
+                    <Ionicons name="chevron-down" size={16} color={index === selectedExercises.length - 1 ? "#6b7280" : "#fff"} />
                   </TouchableOpacity>
 
-                  {/* Bouton supprimer */}
                   <TouchableOpacity
                     className="bg-danger/20 rounded-lg p-2"
                     onPress={() => removeExercise(ex.id)}
                   >
-                    <Ionicons name="trash" size={20} color="#ff4444" />
+                    <Ionicons name="trash" size={16} color="#ff4444" />
                   </TouchableOpacity>
                 </View>
               </View>
 
               {/* Séries */}
               <View className="mb-3">
-                <Text className="text-gray-400 text-sm mb-2">Séries</Text>
+                <Text className="text-gray-400 text-sm mb-2">Nombre de séries</Text>
                 <View className="flex-row items-center gap-2">
                   <TouchableOpacity
                     className="bg-primary-dark rounded-lg p-3"
@@ -307,7 +315,7 @@ export default function EditRoutineScreen({ route, navigation }) {
               {/* Temps de repos */}
               <View>
                 <Text className="text-gray-400 text-sm mb-2">Temps de repos</Text>
-                <View className="flex-row items-center gap-2">
+                <View className="flex-row items-center justify-center gap-2">
                   {/* Minutes */}
                   <View className="flex-1">
                     <View className="flex-row items-center gap-1">
@@ -399,23 +407,42 @@ export default function EditRoutineScreen({ route, navigation }) {
         </View>
       </ScrollView>
 
-      {/* Modal sélection exercices avec recherche */}
+      {/* ✅ Modal sélection exercices AMÉLIORÉ */}
       <Modal
         visible={showExercisePicker}
         animationType="slide"
         transparent={false}
       >
         <View className="flex-1 bg-primary-dark">
-          {/* Header */}
-          <View className="bg-primary-navy p-4 flex-row items-center justify-between">
-            <Text className="text-white text-xl font-bold">Ajouter un exercice</Text>
-            <TouchableOpacity onPress={() => setShowExercisePicker(false)}>
-              <Ionicons name="close" size={28} color="#fff" />
-            </TouchableOpacity>
-          </View>
+          {/* ✅ Header avec bouton RETOUR et VALIDER */}
+          <View className="bg-primary-navy p-4">
+            <View className="flex-row items-center justify-between mb-4">
+              <TouchableOpacity
+                className="bg-primary-dark rounded-xl px-4 py-2"
+                onPress={() => setShowExercisePicker(false)}
+              >
+                <View className="flex-row items-center">
+                  <Ionicons name="arrow-back" size={20} color="#fff" />
+                  <Text className="text-white font-bold ml-2">Retour</Text>
+                </View>
+              </TouchableOpacity>
 
-          {/* Barre de recherche */}
-          <View className="p-4 bg-primary-navy">
+              <Text className="text-white text-lg font-bold">
+                {selectedExercises.length} exercice{selectedExercises.length > 1 ? 's' : ''}
+              </Text>
+
+              <TouchableOpacity
+                className="bg-accent-cyan rounded-xl px-4 py-2"
+                onPress={() => setShowExercisePicker(false)}
+              >
+                <View className="flex-row items-center">
+                  <Ionicons name="checkmark" size={20} color="#0a0e27" />
+                  <Text className="text-primary-dark font-bold ml-2">Valider</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {/* Barre de recherche */}
             <View className="bg-primary-dark rounded-xl px-4 py-3 flex-row items-center">
               <Ionicons name="search" size={20} color="#6b7280" />
               <TextInput
@@ -433,7 +460,7 @@ export default function EditRoutineScreen({ route, navigation }) {
             </View>
           </View>
 
-          {/* Filtres groupes musculaires - FIX CSS */}
+          {/* Filtres groupes musculaires */}
           <View style={{ backgroundColor: '#1a1f3a', paddingBottom: 12 }}>
             <ScrollView 
               horizontal 
@@ -481,8 +508,7 @@ export default function EditRoutineScreen({ route, navigation }) {
                       className={`rounded-xl p-4 mb-2 ${
                         isSelected ? 'bg-accent-cyan/20 border border-accent-cyan' : 'bg-primary-navy'
                       }`}
-                      onPress={() => addExercise(ex)}
-                      disabled={!!isSelected}
+                      onPress={() => toggleExercise(ex)}
                     >
                       <View className="flex-row items-center justify-between">
                         <View className="flex-1">
