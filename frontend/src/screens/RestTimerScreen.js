@@ -86,7 +86,7 @@ export default function RestTimerScreen({
 
           {/* Barre de progression */}
           <View className="w-72 h-3 bg-primary-navy rounded-full overflow-hidden">
-            <View 
+            <View
               className="h-full bg-accent-cyan rounded-full"
               style={{ width: `${100 - getProgress()}%` }}
             />
@@ -117,40 +117,47 @@ export default function RestTimerScreen({
 
         {/* Boutons ajuster */}
         <View className="mb-6">
-          <Text className="text-gray-400 text-center mb-3 text-sm">
-            AJUSTER PAR 5S
+          <Text className="text-gray-400 text-center mb-3">
+            AJUSTER LE TEMPS
           </Text>
-          <View className="flex-row gap-2">
+          <View className="flex-row gap-3">
             <TouchableOpacity
-              className="bg-primary-navy rounded-xl px-3 py-2"
-              onPress={() => adjustTime(-15)}
+              className="bg-primary-navy rounded-xl px-4 py-3"
+              onPress={() => adjustTime(-30)}
             >
-              <Text className="text-white font-bold">-15s</Text>
+              <Text className="text-white font-bold">-30s</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              className="bg-primary-navy rounded-xl px-3 py-2"
+              className="bg-primary-navy rounded-xl px-4 py-3"
+              onPress={() => adjustTime(-10)}
+            >
+              <Text className="text-white font-bold">-10s</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className="bg-primary-navy rounded-xl px-4 py-3"
               onPress={() => adjustTime(-5)}
             >
               <Text className="text-white font-bold">-5s</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              className="bg-primary-navy rounded-xl px-3 py-2"
+              className="bg-primary-navy rounded-xl px-4 py-3"
               onPress={() => adjustTime(5)}
             >
               <Text className="text-white font-bold">+5s</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              className="bg-primary-navy rounded-xl px-3 py-2"
-              onPress={() => adjustTime(15)}
+              className="bg-primary-navy rounded-xl px-4 py-3"
+              onPress={() => adjustTime(10)}
             >
-              <Text className="text-white font-bold">+15s</Text>
+              <Text className="text-white font-bold">+10s</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              className="bg-primary-navy rounded-xl px-3 py-2"
+              className="bg-primary-navy rounded-xl px-4 py-3"
               onPress={() => adjustTime(30)}
             >
               <Text className="text-white font-bold">+30s</Text>

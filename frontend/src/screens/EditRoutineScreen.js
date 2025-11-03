@@ -2,22 +2,48 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, Modal } from 'reac
 import { useState, useEffect } from 'react';
 import { db } from '../database/database';
 import { Ionicons } from '@expo/vector-icons';
-import CustomModal from '../components/CustomModal';
 import * as Haptics from 'expo-haptics';
+import CustomModal from '../components/CustomModal';
 
 export default function EditRoutineScreen({ route, navigation }) {
   const { routineId } = route.params;
+  
   const [routineName, setRoutineName] = useState('');
-  const [routineType, setRoutineType] = useState('Personnalisé');
+  const [routineType, setRoutineType] = useState('');
   const [selectedExercises, setSelectedExercises] = useState([]);
-  const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [availableExercises, setAvailableExercises] = useState([]);
+  const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [muscleFilter, setMuscleFilter] = useState('all');
+  
+  // Config pour nouvel exercice
+  const [showExerciseConfig, setShowExerciseConfig] = useState(false);
+  const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState(null);
+  const [newExerciseSets, setNewExerciseSets] = useState(0);  // ✅ CHANGÉ DE 3 À 0
+  const [newExerciseRestMinutes, setNewExerciseRestMinutes] = useState(1);
+  const [newExerciseRestSeconds, setNewExerciseRestSeconds] = useState(30);
+  
+  // Config pour exercice existant
+  const [editingExerciseIndex, setEditingExerciseIndex] = useState(null);
+  const [editingSets, setEditingSets] = useState(0);
+  const [editingRestMinutes, setEditingRestMinutes] = useState(0);
+  const [editingRestSeconds, setEditingRestSeconds] = useState(0);
   
   // États pour le modal
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState({});
+
+  const routineTypes = [
+    { value: 'push', label: 'Push', icon: '💪' },
+    { value: 'pull', label: 'Pull', icon: '🔙' },
+    { value: 'legs', label: 'Legs', icon: '🦵' },
+    { value: 'upper', label: 'Upper Body', icon: '💪' },
+    { value: 'lower', label: 'Lower Body', icon: '🦵' },
+    { value: 'full', label: 'Full Body', icon: '🏋️' },
+    { value: 'custom', label: 'Custom', icon: '⚡' }
+  ];
+
+  const muscleGroups = ['all', 'Pectoraux', 'Dos', 'Épaules', 'Biceps', 'Triceps', 'Abdominaux', 'Jambes'];
 
   useEffect(() => {
     loadRoutine();
@@ -29,98 +55,102 @@ export default function EditRoutineScreen({ route, navigation }) {
         'SELECT * FROM routines WHERE id = ?',
         [routineId]
       );
-
+      
       setRoutineName(routine.name);
-      setRoutineType(routine.type);
+      setRoutineType(routine.type || 'custom');
 
       const exercises = await db.getAllAsync(`
-        SELECT 
-          e.*,
-          re.sets,
-          re.rest_time,
-          re.order_index
-        FROM routine_exercises re
-        JOIN exercises e ON re.exercise_id = e.id
-        WHERE re.routine_id = ?
-        ORDER BY re.order_index ASC
+        SELECT e.*, re.sets, re.rest_time 
+        FROM routine_exercises re 
+        JOIN exercises e ON re.exercise_id = e.id 
+        WHERE re.routine_id = ? 
+        ORDER BY re.order_index
       `, [routineId]);
 
-      const formattedExercises = exercises.map(ex => ({
-        ...ex,
-        rest_minutes: Math.floor(ex.rest_time / 60),
-        rest_seconds: ex.rest_time % 60
-      }));
-
-      setSelectedExercises(formattedExercises);
+      setSelectedExercises(exercises);
     } catch (error) {
       console.error('Erreur chargement routine:', error);
     }
   };
 
-  const loadExercises = async () => {
+  const loadAvailableExercises = async () => {
     try {
       const exercises = await db.getAllAsync('SELECT * FROM exercises ORDER BY muscle_group, name');
       setAvailableExercises(exercises);
-      setShowExercisePicker(true);
-      setSearchQuery('');
-      setMuscleFilter('all');
     } catch (error) {
       console.error('Erreur chargement exercices:', error);
     }
   };
 
-  // ✅ FIX: Permettre de décocher les exercices
-  const toggleExercise = (exercise) => {
-    const isAlreadySelected = selectedExercises.find(e => e.id === exercise.id);
+  const openExercisePicker = () => {
+    loadAvailableExercises();
+    setShowExercisePicker(true);
+  };
+
+  const selectExercise = (exercise) => {
+    setSelectedExerciseToAdd(exercise);
+    setNewExerciseSets(0);  // ✅ CHANGÉ DE 3 À 0
+    setNewExerciseRestMinutes(1);
+    setNewExerciseRestSeconds(30);
+    setShowExercisePicker(false);
+    setShowExerciseConfig(true);
+  };
+
+  const confirmAddExercise = () => {
+    if (!selectedExerciseToAdd || newExerciseSets === 0) return;
+
+    const totalRestSeconds = (newExerciseRestMinutes * 60) + newExerciseRestSeconds;
+    const exerciseConfig = {
+      ...selectedExerciseToAdd,
+      sets: newExerciseSets,
+      rest_time: totalRestSeconds
+    };
     
-    if (isAlreadySelected) {
-      // Décocher : retirer de la liste
-      setSelectedExercises(selectedExercises.filter(e => e.id !== exercise.id));
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } else {
-      // Cocher : ajouter à la liste
-      setSelectedExercises([...selectedExercises, {
-        ...exercise,
-        sets: 3,
-        rest_minutes: 1,
-        rest_seconds: 30
-      }]);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
+    setSelectedExercises([...selectedExercises, exerciseConfig]);
+    setShowExerciseConfig(false);
+    setSelectedExerciseToAdd(null);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
-  const removeExercise = (exerciseId) => {
-    setSelectedExercises(selectedExercises.filter(e => e.id !== exerciseId));
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  const editExercise = (index) => {
+    const exercise = selectedExercises[index];
+    setEditingExerciseIndex(index);
+    setEditingSets(exercise.sets);
+    const minutes = Math.floor(exercise.rest_time / 60);
+    const seconds = exercise.rest_time % 60;
+    setEditingRestMinutes(minutes);
+    setEditingRestSeconds(seconds);
   };
 
-  const updateExerciseSets = (exerciseId, sets) => {
-    const parsedSets = parseInt(sets) || 1;
-    setSelectedExercises(selectedExercises.map(e => 
-      e.id === exerciseId ? { ...e, sets: Math.max(1, Math.min(20, parsedSets)) } : e
-    ));
+  const confirmEditExercise = () => {
+    if (editingExerciseIndex === null) return;
+
+    const totalRestSeconds = (editingRestMinutes * 60) + editingRestSeconds;
+    const newList = [...selectedExercises];
+    newList[editingExerciseIndex] = {
+      ...newList[editingExerciseIndex],
+      sets: editingSets,
+      rest_time: totalRestSeconds
+    };
+    
+    setSelectedExercises(newList);
+    setEditingExerciseIndex(null);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
-  const updateExerciseRestMinutes = (exerciseId, minutes) => {
-    const parsedMinutes = parseInt(minutes) || 0;
-    setSelectedExercises(selectedExercises.map(e => 
-      e.id === exerciseId ? { ...e, rest_minutes: Math.max(0, Math.min(10, parsedMinutes)) } : e
-    ));
-  };
-
-  const updateExerciseRestSeconds = (exerciseId, seconds) => {
-    const parsedSeconds = parseInt(seconds) || 0;
-    setSelectedExercises(selectedExercises.map(e => 
-      e.id === exerciseId ? { ...e, rest_seconds: Math.max(0, Math.min(59, parsedSeconds)) } : e
-    ));
+  const removeExercise = (index) => {
+    const newList = selectedExercises.filter((_, i) => i !== index);
+    setSelectedExercises(newList);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const moveExercise = (index, direction) => {
-    const newExercises = [...selectedExercises];
-    const newIndex = index + direction;
-    if (newIndex >= 0 && newIndex < newExercises.length) {
-      [newExercises[index], newExercises[newIndex]] = [newExercises[newIndex], newExercises[index]];
-      setSelectedExercises(newExercises);
+    const newList = [...selectedExercises];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    
+    if (targetIndex >= 0 && targetIndex < newList.length) {
+      [newList[index], newList[targetIndex]] = [newList[targetIndex], newList[index]];
+      setSelectedExercises(newList);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
@@ -141,7 +171,7 @@ export default function EditRoutineScreen({ route, navigation }) {
     if (selectedExercises.length === 0) {
       setModalConfig({
         title: 'Exercices requis',
-        message: 'Ajoute au moins un exercice à ta routine !',
+        message: 'Ajoute au moins un exercice !',
         icon: 'alert-circle',
         iconColor: '#ff4444',
         buttons: [{ text: 'OK', style: 'primary', onPress: () => {} }]
@@ -154,7 +184,7 @@ export default function EditRoutineScreen({ route, navigation }) {
       // Mettre à jour la routine
       await db.runAsync(
         'UPDATE routines SET name = ?, type = ? WHERE id = ?',
-        [routineName, routineType, routineId]
+        [routineName.trim(), routineType, routineId]
       );
 
       // Supprimer les anciens exercices
@@ -163,24 +193,36 @@ export default function EditRoutineScreen({ route, navigation }) {
         [routineId]
       );
 
-      // Réinsérer les exercices
+      // Ajouter les nouveaux exercices
       for (let i = 0; i < selectedExercises.length; i++) {
         const ex = selectedExercises[i];
-        const totalRestSeconds = (ex.rest_minutes * 60) + ex.rest_seconds;
-        
         await db.runAsync(
           'INSERT INTO routine_exercises (routine_id, exercise_id, order_index, sets, rest_time) VALUES (?, ?, ?, ?, ?)',
-          [routineId, ex.id, i, ex.sets, totalRestSeconds]
+          [routineId, ex.id, i, ex.sets, ex.rest_time]
         );
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      navigation.goBack();
+      
+      setModalConfig({
+        title: '✅ Routine modifiée !',
+        message: `"${routineName}" a été mise à jour`,
+        icon: 'checkmark-circle',
+        iconColor: '#00ff88',
+        buttons: [
+          {
+            text: 'OK',
+            style: 'primary',
+            onPress: () => navigation.goBack()
+          }
+        ]
+      });
+      setModalVisible(true);
     } catch (error) {
-      console.error('Erreur sauvegarde routine:', error);
+      console.error('Erreur modification routine:', error);
       setModalConfig({
         title: 'Erreur',
-        message: 'Impossible de sauvegarder la routine',
+        message: 'Impossible de modifier la routine',
         icon: 'alert-circle',
         iconColor: '#ff4444',
         buttons: [{ text: 'OK', style: 'primary', onPress: () => {} }]
@@ -189,215 +231,161 @@ export default function EditRoutineScreen({ route, navigation }) {
     }
   };
 
-  // Filtrer les exercices
+  const deleteRoutine = async () => {
+    setModalConfig({
+      title: '🗑️ Supprimer la routine ?',
+      message: 'Cette action est irréversible',
+      icon: 'trash',
+      iconColor: '#ff4444',
+      buttons: [
+        { text: 'Annuler', onPress: () => {} },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await db.runAsync('DELETE FROM routine_exercises WHERE routine_id = ?', [routineId]);
+              await db.runAsync('DELETE FROM routines WHERE id = ?', [routineId]);
+              
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              navigation.goBack();
+            } catch (error) {
+              console.error('Erreur suppression routine:', error);
+            }
+          }
+        }
+      ]
+    });
+    setModalVisible(true);
+  };
+
+  // Filtrer les exercices disponibles
   const filteredExercises = availableExercises.filter(ex => {
     const matchesSearch = ex.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesMuscle = muscleFilter === 'all' || ex.muscle_group === muscleFilter;
     return matchesSearch && matchesMuscle;
   });
 
-  // ✅ FIX: Groupes musculaires corrigés
-  const muscleGroups = ['all', 'Pectoraux', 'Dos', 'Épaules', 'Biceps', 'Triceps', 'Abdominaux', 'Jambes'];
-
   return (
     <View className="flex-1 bg-primary-dark">
       <ScrollView>
         <View className="p-6">
           {/* Nom de la routine */}
-          <Text className="text-white text-lg font-bold mb-2">NOM DE LA ROUTINE</Text>
-          <TextInput
-            className="bg-primary-navy text-white rounded-xl p-4 mb-6"
-            placeholder="Ex: Pectoraux & Triceps"
-            placeholderTextColor="#6b7280"
-            value={routineName}
-            onChangeText={setRoutineName}
-          />
-
-          {/* Type */}
-          <Text className="text-white text-lg font-bold mb-3">TYPE D'ENTRAÎNEMENT</Text>
-          <View className="flex-row flex-wrap gap-2 mb-6">
-            {['Pectoraux & Épaules', 'Dos & Bras', 'Jambes', 'Corps complet', 'Personnalisé'].map(type => (
-              <TouchableOpacity
-                key={type}
-                className={`rounded-xl px-4 py-3 border ${
-                  routineType === type 
-                    ? 'bg-accent-cyan border-accent-cyan' 
-                    : 'bg-primary-navy border-gray-600'
-                }`}
-                onPress={() => setRoutineType(type)}
-              >
-                <Text className={`font-bold ${
-                  routineType === type ? 'text-primary-dark' : 'text-gray-400'
-                }`}>
-                  {type}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View className="mb-6">
+            <Text className="text-white text-lg font-bold mb-2">NOM DE LA ROUTINE</Text>
+            <TextInput
+              className="bg-primary-navy text-white rounded-xl p-4"
+              placeholder="Ex: Push Day, Upper Body..."
+              placeholderTextColor="#6b7280"
+              value={routineName}
+              onChangeText={setRoutineName}
+            />
           </View>
 
-          {/* Exercices sélectionnés */}
-          <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-white text-lg font-bold">
-              EXERCICES ({selectedExercises.length})
-            </Text>
+          {/* Type de routine */}
+          <View className="mb-6">
+            <Text className="text-white text-lg font-bold mb-3">TYPE DE ROUTINE</Text>
+            <View className="flex-row flex-wrap gap-2">
+              {routineTypes.map(type => (
+                <TouchableOpacity
+                  key={type.value}
+                  className={`px-4 py-2 rounded-xl ${
+                    routineType === type.value ? 'bg-accent-cyan' : 'bg-primary-navy'
+                  }`}
+                  onPress={() => setRoutineType(type.value)}
+                >
+                  <Text className={`font-semibold ${
+                    routineType === type.value ? 'text-primary-dark' : 'text-gray-400'
+                  }`}>
+                    {type.icon} {type.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Exercices */}
+          <View className="mb-6">
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-white text-lg font-bold">EXERCICES</Text>
+              <Text className="text-gray-400">
+                {selectedExercises.length} exercice{selectedExercises.length > 1 ? 's' : ''}
+              </Text>
+            </View>
+
+            {/* Liste des exercices ajoutés */}
+            {selectedExercises.map((ex, index) => (
+              <View key={index} className="bg-primary-navy rounded-xl p-4 mb-3">
+                <View className="flex-row items-center justify-between mb-2">
+                  <Text className="text-white font-semibold flex-1">
+                    {index + 1}. {ex.name}
+                  </Text>
+                  <View className="flex-row gap-2">
+                    <TouchableOpacity
+                      onPress={() => moveExercise(index, 'up')}
+                      disabled={index === 0}
+                    >
+                      <Ionicons 
+                        name="chevron-up" 
+                        size={20} 
+                        color={index === 0 ? '#374151' : '#fff'} 
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => moveExercise(index, 'down')}
+                      disabled={index === selectedExercises.length - 1}
+                    >
+                      <Ionicons 
+                        name="chevron-down" 
+                        size={20} 
+                        color={index === selectedExercises.length - 1 ? '#374151' : '#fff'} 
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => editExercise(index)}>
+                      <Ionicons name="create" size={20} color="#00f5ff" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => removeExercise(index)}>
+                      <Ionicons name="trash" size={20} color="#ff4444" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                <Text className="text-gray-400 text-sm">
+                  {ex.sets} séries • {Math.floor(ex.rest_time / 60)}:{(ex.rest_time % 60).toString().padStart(2, '0')} repos
+                </Text>
+              </View>
+            ))}
+
+            {/* Bouton ajouter exercice */}
             <TouchableOpacity
-              className="bg-accent-cyan rounded-xl px-4 py-2"
-              onPress={loadExercises}
+              className="bg-primary-navy border-2 border-dashed border-gray-600 rounded-xl p-4 items-center"
+              onPress={openExercisePicker}
             >
-              <Text className="text-primary-dark font-bold">+ AJOUTER</Text>
+              <Ionicons name="add-circle" size={24} color="#00f5ff" />
+              <Text className="text-gray-400 mt-2">Ajouter un exercice</Text>
             </TouchableOpacity>
           </View>
 
-          {selectedExercises.map((ex, index) => (
-            <View key={`${ex.id}-${index}`} className="bg-primary-navy rounded-2xl p-4 mb-3">
-              {/* En-tête exercice */}
-              <View className="flex-row items-center justify-between mb-3">
-                <View className="flex-1">
-                  <Text className="text-white font-bold">{ex.name}</Text>
-                  <Text className="text-gray-400 text-sm">{ex.muscle_group}</Text>
-                </View>
-
-                {/* Boutons réorganiser et supprimer */}
-                <View className="flex-row gap-2">
-                  <TouchableOpacity
-                    className="bg-primary-dark rounded-lg p-2"
-                    onPress={() => moveExercise(index, -1)}
-                    disabled={index === 0}
-                  >
-                    <Ionicons name="chevron-up" size={16} color={index === 0 ? "#6b7280" : "#fff"} />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    className="bg-primary-dark rounded-lg p-2"
-                    onPress={() => moveExercise(index, 1)}
-                    disabled={index === selectedExercises.length - 1}
-                  >
-                    <Ionicons name="chevron-down" size={16} color={index === selectedExercises.length - 1 ? "#6b7280" : "#fff"} />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    className="bg-danger/20 rounded-lg p-2"
-                    onPress={() => removeExercise(ex.id)}
-                  >
-                    <Ionicons name="trash" size={16} color="#ff4444" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Séries */}
-              <View className="mb-3">
-                <Text className="text-gray-400 text-sm mb-2">Nombre de séries</Text>
-                <View className="flex-row items-center gap-2">
-                  <TouchableOpacity
-                    className="bg-primary-dark rounded-lg p-3"
-                    onPress={() => updateExerciseSets(ex.id, ex.sets - 1)}
-                  >
-                    <Ionicons name="remove" size={20} color="#fff" />
-                  </TouchableOpacity>
-
-                  <TextInput
-                    className="flex-1 bg-primary-dark text-white text-center rounded-lg p-3 text-lg font-bold"
-                    value={ex.sets.toString()}
-                    onChangeText={(text) => updateExerciseSets(ex.id, text)}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                  />
-
-                  <TouchableOpacity
-                    className="bg-primary-dark rounded-lg p-3"
-                    onPress={() => updateExerciseSets(ex.id, ex.sets + 1)}
-                  >
-                    <Ionicons name="add" size={20} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Temps de repos */}
-              <View>
-                <Text className="text-gray-400 text-sm mb-2">Temps de repos</Text>
-                <View className="flex-row items-center justify-center gap-2">
-                  {/* Minutes */}
-                  <View className="flex-1">
-                    <View className="flex-row items-center gap-1">
-                      <TouchableOpacity
-                        className="bg-primary-dark rounded-lg p-2"
-                        onPress={() => updateExerciseRestMinutes(ex.id, ex.rest_minutes - 1)}
-                      >
-                        <Ionicons name="remove" size={16} color="#fff" />
-                      </TouchableOpacity>
-
-                      <TextInput
-                        className="flex-1 bg-primary-dark text-white text-center rounded-lg p-2"
-                        value={ex.rest_minutes.toString()}
-                        onChangeText={(text) => updateExerciseRestMinutes(ex.id, text)}
-                        keyboardType="number-pad"
-                        maxLength={2}
-                      />
-
-                      <TouchableOpacity
-                        className="bg-primary-dark rounded-lg p-2"
-                        onPress={() => updateExerciseRestMinutes(ex.id, ex.rest_minutes + 1)}
-                      >
-                        <Ionicons name="add" size={16} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
-                    <Text className="text-gray-400 text-xs text-center mt-1">min</Text>
-                  </View>
-
-                  <Text className="text-white text-xl">:</Text>
-
-                  {/* Secondes */}
-                  <View className="flex-1">
-                    <View className="flex-row items-center gap-1">
-                      <TouchableOpacity
-                        className="bg-primary-dark rounded-lg p-2"
-                        onPress={() => updateExerciseRestSeconds(ex.id, ex.rest_seconds - 15)}
-                      >
-                        <Ionicons name="remove" size={16} color="#fff" />
-                      </TouchableOpacity>
-
-                      <TextInput
-                        className="flex-1 bg-primary-dark text-white text-center rounded-lg p-2"
-                        value={ex.rest_seconds.toString()}
-                        onChangeText={(text) => updateExerciseRestSeconds(ex.id, text)}
-                        keyboardType="number-pad"
-                        maxLength={2}
-                      />
-
-                      <TouchableOpacity
-                        className="bg-primary-dark rounded-lg p-2"
-                        onPress={() => updateExerciseRestSeconds(ex.id, ex.rest_seconds + 15)}
-                      >
-                        <Ionicons name="add" size={16} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
-                    <Text className="text-gray-400 text-xs text-center mt-1">sec</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-          ))}
-
-          {selectedExercises.length === 0 && (
-            <View className="bg-primary-navy rounded-2xl p-6 mb-6">
-              <Text className="text-gray-400 text-center">
-                Aucun exercice ajouté
-              </Text>
-            </View>
-          )}
-
-          {/* Bouton enregistrer */}
+          {/* Boutons */}
           <TouchableOpacity
-            className="bg-success rounded-2xl p-4 mb-3"
+            className="bg-success rounded-2xl p-5 mb-3"
             onPress={saveRoutine}
           >
-            <Text className="text-primary-dark text-center text-lg font-bold">
+            <Text className="text-primary-dark text-center text-xl font-bold">
               ✓ ENREGISTRER LES MODIFICATIONS
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            className="bg-primary-navy rounded-2xl p-3"
+            className="bg-danger/20 rounded-2xl p-4 mb-3"
+            onPress={deleteRoutine}
+          >
+            <Text className="text-danger text-center font-semibold">
+              🗑️ Supprimer la routine
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            className="bg-primary-navy rounded-2xl p-4"
             onPress={() => navigation.goBack()}
           >
             <Text className="text-gray-400 text-center font-semibold">
@@ -407,142 +395,347 @@ export default function EditRoutineScreen({ route, navigation }) {
         </View>
       </ScrollView>
 
-      {/* ✅ Modal sélection exercices AMÉLIORÉ */}
+      {/* Modal sélection exercice (même que CreateRoutineScreen) */}
       <Modal
         visible={showExercisePicker}
         animationType="slide"
         transparent={false}
       >
+        {/* Contenu identique à CreateRoutineScreen */}
         <View className="flex-1 bg-primary-dark">
-          {/* ✅ Header avec bouton RETOUR et VALIDER */}
-          <View className="bg-primary-navy p-4">
-            <View className="flex-row items-center justify-between mb-4">
-              <TouchableOpacity
-                className="bg-primary-dark rounded-xl px-4 py-2"
-                onPress={() => setShowExercisePicker(false)}
-              >
-                <View className="flex-row items-center">
-                  <Ionicons name="arrow-back" size={20} color="#fff" />
-                  <Text className="text-white font-bold ml-2">Retour</Text>
-                </View>
-              </TouchableOpacity>
+          <View className="bg-primary-navy p-4 flex-row items-center justify-between">
+            <Text className="text-white text-xl font-bold">Ajouter un exercice</Text>
+            <TouchableOpacity onPress={() => setShowExercisePicker(false)}>
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+          </View>
 
-              <Text className="text-white text-lg font-bold">
-                {selectedExercises.length} exercice{selectedExercises.length > 1 ? 's' : ''}
-              </Text>
-
-              <TouchableOpacity
-                className="bg-accent-cyan rounded-xl px-4 py-2"
-                onPress={() => setShowExercisePicker(false)}
-              >
-                <View className="flex-row items-center">
-                  <Ionicons name="checkmark" size={20} color="#0a0e27" />
-                  <Text className="text-primary-dark font-bold ml-2">Valider</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            {/* Barre de recherche */}
+          <View className="p-4 bg-primary-navy">
             <View className="bg-primary-dark rounded-xl px-4 py-3 flex-row items-center">
               <Ionicons name="search" size={20} color="#6b7280" />
               <TextInput
                 className="flex-1 text-white ml-2"
-                placeholder="Rechercher un exercice..."
+                placeholder="Rechercher..."
                 placeholderTextColor="#6b7280"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={20} color="#6b7280" />
-                </TouchableOpacity>
-              )}
             </View>
           </View>
 
-          {/* Filtres groupes musculaires */}
-          <View style={{ backgroundColor: '#1a1f3a', paddingBottom: 12 }}>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 16 }}
-            >
-              {muscleGroups.map(muscle => (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4 pb-3 bg-primary-navy">
+            {muscleGroups.map(muscle => (
+              <TouchableOpacity
+                key={muscle}
+                className={`mr-2 px-4 py-2 rounded-xl ${
+                  muscleFilter === muscle ? 'bg-accent-cyan' : 'bg-primary-dark'
+                }`}
+                onPress={() => setMuscleFilter(muscle)}
+              >
+                <Text className={`font-semibold ${
+                  muscleFilter === muscle ? 'text-primary-dark' : 'text-gray-400'
+                }`}>
+                  {muscle === 'all' ? 'Tous' : muscle}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <ScrollView className="flex-1">
+            <View className="p-4">
+              {filteredExercises.map(ex => (
                 <TouchableOpacity
-                  key={muscle}
-                  style={{
-                    marginRight: 8,
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
-                    borderRadius: 12,
-                    backgroundColor: muscleFilter === muscle ? '#00f5ff' : '#0a0e27'
-                  }}
-                  onPress={() => setMuscleFilter(muscle)}
+                  key={ex.id}
+                  className="bg-primary-navy rounded-xl p-4 mb-2"
+                  onPress={() => selectExercise(ex)}
                 >
-                  <Text style={{
-                    fontWeight: '600',
-                    color: muscleFilter === muscle ? '#0a0e27' : '#6b7280'
-                  }}>
-                    {muscle === 'all' ? 'Tous' : muscle}
+                  <Text className="text-white font-bold">{ex.name}</Text>
+                  <Text className="text-gray-400 text-sm">
+                    {ex.muscle_group} • {ex.equipment}
                   </Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Modal configuration nouvel exercice */}
+      <Modal
+        visible={showExerciseConfig}
+        animationType="slide"
+        transparent={false}
+      >
+        <View className="flex-1 bg-primary-dark">
+          <View className="bg-primary-navy p-4 flex-row items-center justify-between">
+            <Text className="text-white text-xl font-bold">Configuration</Text>
+            <TouchableOpacity onPress={() => setShowExerciseConfig(false)}>
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
           </View>
 
-          {/* Liste exercices */}
-          <ScrollView className="flex-1">
-            <View className="p-4">
-              {filteredExercises.length === 0 ? (
-                <View className="bg-primary-navy rounded-xl p-6">
-                  <Text className="text-gray-400 text-center">
-                    Aucun exercice trouvé
+          <ScrollView>
+            <View className="p-6">
+              {selectedExerciseToAdd && (
+                <>
+                  <Text className="text-white text-2xl font-bold mb-2">
+                    {selectedExerciseToAdd.name}
                   </Text>
-                </View>
-              ) : (
-                filteredExercises.map(ex => {
-                  const isSelected = selectedExercises.find(e => e.id === ex.id);
-                  return (
-                    <TouchableOpacity
-                      key={ex.id}
-                      className={`rounded-xl p-4 mb-2 ${
-                        isSelected ? 'bg-accent-cyan/20 border border-accent-cyan' : 'bg-primary-navy'
-                      }`}
-                      onPress={() => toggleExercise(ex)}
-                    >
-                      <View className="flex-row items-center justify-between">
-                        <View className="flex-1">
-                          <Text className={`font-bold ${isSelected ? 'text-accent-cyan' : 'text-white'}`}>
-                            {ex.name}
-                          </Text>
-                          <Text className="text-gray-400 text-sm">
-                            {ex.muscle_group} • {ex.equipment}
-                          </Text>
-                        </View>
-                        {isSelected && (
-                          <Ionicons name="checkmark-circle" size={24} color="#00f5ff" />
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })
-              )}
+                  <Text className="text-gray-400 mb-6">
+                    {selectedExerciseToAdd.muscle_group} • {selectedExerciseToAdd.equipment}
+                  </Text>
 
-              {/* Bouton créer exercice custom */}
-              <TouchableOpacity
-                className="bg-primary-navy rounded-xl p-4 mt-4 border border-dashed border-gray-600"
-                onPress={() => {
-                  setShowExercisePicker(false);
-                  navigation.navigate('CreateCustomExercise');
-                }}
-              >
-                <View className="flex-row items-center justify-center">
-                  <Ionicons name="add-circle" size={24} color="#00f5ff" />
-                  <Text className="text-accent-cyan font-bold ml-2">
-                    Créer un exercice personnalisé
+                  <View className="mb-6">
+                    <Text className="text-white text-lg font-bold mb-3">NOMBRE DE SÉRIES</Text>
+                    <View className="flex-row items-center gap-3">
+                      <TouchableOpacity
+                        className="bg-primary-navy rounded-xl p-4"
+                        onPress={() => setNewExerciseSets(Math.max(0, newExerciseSets - 1))}
+                      >
+                        <Ionicons name="remove" size={24} color="#fff" />
+                      </TouchableOpacity>
+
+                      <TextInput
+                        className="flex-1 bg-primary-navy text-white text-center rounded-xl p-4 text-2xl font-bold"
+                        value={newExerciseSets.toString()}
+                        onChangeText={(text) => {
+                          const val = parseInt(text) || 0;
+                          setNewExerciseSets(Math.max(0, Math.min(20, val)));
+                        }}
+                        keyboardType="number-pad"
+                        maxLength={2}
+                      />
+
+                      <TouchableOpacity
+                        className="bg-primary-navy rounded-xl p-4"
+                        onPress={() => setNewExerciseSets(Math.min(20, newExerciseSets + 1))}
+                      >
+                        <Ionicons name="add" size={24} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                    
+                    {newExerciseSets === 0 && (
+                      <Text className="text-amber-400 text-sm text-center mt-2">
+                        ⚠️ Tu dois définir au moins 1 série
+                      </Text>
+                    )}
+                  </View>
+
+                  <View className="mb-6">
+                    <Text className="text-white text-lg font-bold mb-3">TEMPS DE REPOS</Text>
+                    <View className="flex-row items-center gap-2">
+                      <View className="flex-1">
+                        <View className="flex-row items-center gap-1">
+                          <TouchableOpacity
+                            className="bg-primary-navy rounded-lg p-3"
+                            onPress={() => setNewExerciseRestMinutes(Math.max(0, newExerciseRestMinutes - 1))}
+                          >
+                            <Ionicons name="remove" size={18} color="#fff" />
+                          </TouchableOpacity>
+
+                          <TextInput
+                            className="flex-1 bg-primary-navy text-white text-center rounded-lg p-3 text-xl font-bold"
+                            value={newExerciseRestMinutes.toString()}
+                            onChangeText={(text) => {
+                              const val = parseInt(text) || 0;
+                              setNewExerciseRestMinutes(Math.max(0, Math.min(10, val)));
+                            }}
+                            keyboardType="number-pad"
+                            maxLength={2}
+                          />
+
+                          <TouchableOpacity
+                            className="bg-primary-navy rounded-lg p-3"
+                            onPress={() => setNewExerciseRestMinutes(Math.min(10, newExerciseRestMinutes + 1))}
+                          >
+                            <Ionicons name="add" size={18} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
+                        <Text className="text-gray-400 text-xs text-center mt-2">minutes</Text>
+                      </View>
+
+                      <Text className="text-white text-2xl">:</Text>
+
+                      <View className="flex-1">
+                        <View className="flex-row items-center gap-1">
+                          <TouchableOpacity
+                            className="bg-primary-navy rounded-lg p-3"
+                            onPress={() => setNewExerciseRestSeconds(Math.max(0, newExerciseRestSeconds - 5))}
+                          >
+                            <Ionicons name="remove" size={18} color="#fff" />
+                          </TouchableOpacity>
+
+                          <TextInput
+                            className="flex-1 bg-primary-navy text-white text-center rounded-lg p-3 text-xl font-bold"
+                            value={newExerciseRestSeconds.toString()}
+                            onChangeText={(text) => {
+                              const val = parseInt(text) || 0;
+                              setNewExerciseRestSeconds(Math.max(0, Math.min(59, val)));
+                            }}
+                            keyboardType="number-pad"
+                            maxLength={2}
+                          />
+
+                          <TouchableOpacity
+                            className="bg-primary-navy rounded-lg p-3"
+                            onPress={() => setNewExerciseRestSeconds(Math.min(59, newExerciseRestSeconds + 5))}
+                          >
+                            <Ionicons name="add" size={18} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
+                        <Text className="text-gray-400 text-xs text-center mt-2">secondes</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    className={`rounded-2xl p-5 ${newExerciseSets > 0 ? 'bg-success' : 'bg-gray-700'}`}
+                    onPress={confirmAddExercise}
+                    disabled={newExerciseSets === 0}
+                  >
+                    <Text className={`text-center text-xl font-bold ${newExerciseSets > 0 ? 'text-primary-dark' : 'text-gray-500'}`}>
+                      ✓ AJOUTER CET EXERCICE
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Modal édition exercice existant */}
+      <Modal
+        visible={editingExerciseIndex !== null}
+        animationType="slide"
+        transparent={false}
+      >
+        <View className="flex-1 bg-primary-dark">
+          <View className="bg-primary-navy p-4 flex-row items-center justify-between">
+            <Text className="text-white text-xl font-bold">Modifier l'exercice</Text>
+            <TouchableOpacity onPress={() => setEditingExerciseIndex(null)}>
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView>
+            <View className="p-6">
+              {editingExerciseIndex !== null && (
+                <>
+                  <Text className="text-white text-2xl font-bold mb-2">
+                    {selectedExercises[editingExerciseIndex]?.name}
                   </Text>
-                </View>
-              </TouchableOpacity>
+                  <Text className="text-gray-400 mb-6">
+                    {selectedExercises[editingExerciseIndex]?.muscle_group} • {selectedExercises[editingExerciseIndex]?.equipment}
+                  </Text>
+
+                  <View className="mb-6">
+                    <Text className="text-white text-lg font-bold mb-3">NOMBRE DE SÉRIES</Text>
+                    <View className="flex-row items-center gap-3">
+                      <TouchableOpacity
+                        className="bg-primary-navy rounded-xl p-4"
+                        onPress={() => setEditingSets(Math.max(1, editingSets - 1))}
+                      >
+                        <Ionicons name="remove" size={24} color="#fff" />
+                      </TouchableOpacity>
+
+                      <TextInput
+                        className="flex-1 bg-primary-navy text-white text-center rounded-xl p-4 text-2xl font-bold"
+                        value={editingSets.toString()}
+                        onChangeText={(text) => {
+                          const val = parseInt(text) || 1;
+                          setEditingSets(Math.max(1, Math.min(20, val)));
+                        }}
+                        keyboardType="number-pad"
+                        maxLength={2}
+                      />
+
+                      <TouchableOpacity
+                        className="bg-primary-navy rounded-xl p-4"
+                        onPress={() => setEditingSets(Math.min(20, editingSets + 1))}
+                      >
+                        <Ionicons name="add" size={24} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <View className="mb-6">
+                    <Text className="text-white text-lg font-bold mb-3">TEMPS DE REPOS</Text>
+                    <View className="flex-row items-center gap-2">
+                      <View className="flex-1">
+                        <View className="flex-row items-center gap-1">
+                          <TouchableOpacity
+                            className="bg-primary-navy rounded-lg p-3"
+                            onPress={() => setEditingRestMinutes(Math.max(0, editingRestMinutes - 1))}
+                          >
+                            <Ionicons name="remove" size={18} color="#fff" />
+                          </TouchableOpacity>
+
+                          <TextInput
+                            className="flex-1 bg-primary-navy text-white text-center rounded-lg p-3 text-xl font-bold"
+                            value={editingRestMinutes.toString()}
+                            onChangeText={(text) => {
+                              const val = parseInt(text) || 0;
+                              setEditingRestMinutes(Math.max(0, Math.min(10, val)));
+                            }}
+                            keyboardType="number-pad"
+                            maxLength={2}
+                          />
+
+                          <TouchableOpacity
+                            className="bg-primary-navy rounded-lg p-3"
+                            onPress={() => setEditingRestMinutes(Math.min(10, editingRestMinutes + 1))}
+                          >
+                            <Ionicons name="add" size={18} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
+                        <Text className="text-gray-400 text-xs text-center mt-2">minutes</Text>
+                      </View>
+
+                      <Text className="text-white text-2xl">:</Text>
+
+                      <View className="flex-1">
+                        <View className="flex-row items-center gap-1">
+                          <TouchableOpacity
+                            className="bg-primary-navy rounded-lg p-3"
+                            onPress={() => setEditingRestSeconds(Math.max(0, editingRestSeconds - 5))}
+                          >
+                            <Ionicons name="remove" size={18} color="#fff" />
+                          </TouchableOpacity>
+
+                          <TextInput
+                            className="flex-1 bg-primary-navy text-white text-center rounded-lg p-3 text-xl font-bold"
+                            value={editingRestSeconds.toString()}
+                            onChangeText={(text) => {
+                              const val = parseInt(text) || 0;
+                              setEditingRestSeconds(Math.max(0, Math.min(59, val)));
+                            }}
+                            keyboardType="number-pad"
+                            maxLength={2}
+                          />
+
+                          <TouchableOpacity
+                            className="bg-primary-navy rounded-lg p-3"
+                            onPress={() => setEditingRestSeconds(Math.min(59, editingRestSeconds + 5))}
+                          >
+                            <Ionicons name="add" size={18} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
+                        <Text className="text-gray-400 text-xs text-center mt-2">secondes</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    className="bg-success rounded-2xl p-5"
+                    onPress={confirmEditExercise}
+                  >
+                    <Text className="text-primary-dark text-center text-xl font-bold">
+                      ✓ VALIDER LES MODIFICATIONS
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </ScrollView>
         </View>

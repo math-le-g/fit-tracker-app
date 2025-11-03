@@ -11,12 +11,36 @@ export default function ExerciseTransitionScreen({
   totalExercises,
   workoutStartTime,
   warmupDuration,
-  onStartNext
+  onStartNext,
+  navigation,
+  exercisesList,
+  onUpdateExercises
 }) {
 
   const handleStartNext = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onStartNext();
+  };
+
+  const handleReplaceExercise = () => {
+    navigation.navigate('SelectReplacementExercise', {
+      currentExercise: nextExercise,
+      onReplace: (newExercise) => {
+        // Créer une nouvelle liste avec l'exercice remplacé
+        const newList = [...exercisesList];
+        newList[exerciseNumber] = {
+          ...newExercise,
+          sets: nextExercise.sets,
+          rest_time: nextExercise.rest_time
+        };
+        // Mettre à jour la liste
+        if (onUpdateExercises) {
+          onUpdateExercises(newList);
+        }
+        // Rafraîchir l'écran avec le nouvel exercice
+        navigation.goBack();
+      }
+    });
   };
 
   const formatTime = (ms) => {
@@ -44,7 +68,7 @@ export default function ExerciseTransitionScreen({
             <Ionicons name="checkmark-circle" size={64} color="#00ff88" />
           </View>
           <Text className="text-white text-2xl font-bold mb-2">
-            <Text>✅ </Text>EXERCICE TERMINÉ !
+            ✅ EXERCICE TERMINÉ !
           </Text>
           <Text className="text-gray-400 text-lg">
             {completedExercise.name}
@@ -54,7 +78,7 @@ export default function ExerciseTransitionScreen({
         {/* Récap exercice */}
         <View className="bg-primary-navy rounded-2xl p-6 mb-4">
           <Text className="text-white text-lg font-bold mb-3">
-            <Text>📊 </Text> Performance
+            📊 Performance
           </Text>
 
           {completedSets.map((set, index) => (
@@ -82,7 +106,7 @@ export default function ExerciseTransitionScreen({
             <Ionicons name="time-outline" size={20} color="#00f5ff" />
             <View className="flex-1 ml-3">
               <Text className="text-accent-cyan font-semibold mb-1">
-                <Text>💡 </Text> Prends ton temps
+                💡 Prends ton temps
               </Text>
               <Text className="text-gray-400 text-sm">
                 Range tes poids, change de machine et prépare le prochain exercice
@@ -91,20 +115,30 @@ export default function ExerciseTransitionScreen({
           </View>
         </View>
 
-        {/* Prochain exercice AVEC bouton intégré */}
+        {/* Prochain exercice avec options */}
         {nextExercise && (
           <View className="bg-primary-navy rounded-2xl p-6 mb-4">
-            <View className="flex-row items-center mb-4">
-              <Ionicons name="arrow-forward-circle" size={24} color="#00f5ff" />
-              <Text className="text-white text-lg font-bold ml-2">
-                PROCHAIN EXERCICE
-              </Text>
+            <View className="flex-row items-center justify-between mb-4">
+              <View className="flex-row items-center">
+                <Ionicons name="arrow-forward-circle" size={24} color="#00f5ff" />
+                <Text className="text-white text-lg font-bold ml-2">
+                  PROCHAIN EXERCICE
+                </Text>
+              </View>
+              
+              {/* Bouton pour remplacer l'exercice */}
+              <TouchableOpacity
+                className="bg-primary-dark rounded-full p-2"
+                onPress={handleReplaceExercise}
+              >
+                <Ionicons name="swap-horizontal" size={20} color="#00f5ff" />
+              </TouchableOpacity>
             </View>
 
             <View className="flex-row items-center justify-between mb-4">
               <View className="flex-1">
                 <Text className="text-gray-400 text-sm mb-1">
-                  Exercice {exerciseNumber + 1}/{totalExercises}
+                  Exercice {exerciseNumber + 1}/{totalExercices}
                 </Text>
                 <Text className="text-white text-xl font-bold">
                   {nextExercise.name}
@@ -120,7 +154,14 @@ export default function ExerciseTransitionScreen({
               </View>
             </View>
 
-            {/* BOUTON COMMENCER INTÉGRÉ */}
+            {/* Info changement d'exercice */}
+            <View className="bg-primary-dark rounded-xl p-3 mb-4">
+              <Text className="text-gray-400 text-xs text-center">
+                💡 Machine occupée ? Clique sur 🔄 pour changer d'exercice
+              </Text>
+            </View>
+
+            {/* Bouton commencer */}
             <TouchableOpacity
               className="bg-accent-cyan rounded-xl p-4"
               onPress={handleStartNext}
@@ -128,7 +169,7 @@ export default function ExerciseTransitionScreen({
               <View className="flex-row items-center justify-center">
                 <Ionicons name="play" size={24} color="#0a0e27" />
                 <Text className="text-primary-dark text-lg font-bold ml-2">
-                  <Text>🚀 </Text>COMMENCER
+                  🚀 COMMENCER
                 </Text>
               </View>
             </TouchableOpacity>
@@ -138,7 +179,7 @@ export default function ExerciseTransitionScreen({
         {/* Timer séance */}
         <View className="items-center mt-4 mb-6">
           <Text className="text-gray-400 text-center">
-            <Text>⏱️</Text> Temps total : {formatTime(elapsedTime)}
+            ⏱️ Temps total : {formatTime(elapsedTime)}
           </Text>
         </View>
       </View>

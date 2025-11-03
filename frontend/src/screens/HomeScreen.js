@@ -114,25 +114,30 @@ export default function HomeScreen({ navigation }) {
         date.setDate(today.getDate() - i);
         date.setHours(0, 0, 0, 0);
 
-        const dayName = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'][date.getDay()];
-        
-        // Chercher séance musculation (SANS routine_id)
-        const workout = await db.getFirstAsync(`
-          SELECT *
-          FROM workouts
-          WHERE date(date) = date(?)
-          ORDER BY date DESC
-          LIMIT 1
-        `, [date.toISOString()]);
+        const nextDate = new Date(date);
+        nextDate.setDate(date.getDate() + 1);
 
-        // Chercher course
+        const dayName = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'][date.getDay()];
+
+        // Chercher séance musculation du JOUR
+        const workout = await db.getFirstAsync(`
+        SELECT *
+        FROM workouts
+        WHERE datetime(date) >= datetime(?) 
+        AND datetime(date) < datetime(?)
+        ORDER BY date DESC
+        LIMIT 1
+      `, [date.toISOString(), nextDate.toISOString()]);
+
+        // Chercher course du JOUR
         const run = await db.getFirstAsync(`
-          SELECT *
-          FROM runs
-          WHERE date(date) = date(?)
-          ORDER BY date DESC
-          LIMIT 1
-        `, [date.toISOString()]);
+        SELECT *
+        FROM runs
+        WHERE datetime(date) >= datetime(?)
+        AND datetime(date) < datetime(?)
+        ORDER BY date DESC
+        LIMIT 1
+      `, [date.toISOString(), nextDate.toISOString()]);
 
         const isToday = date.toDateString() === today.toDateString();
 
@@ -200,7 +205,7 @@ export default function HomeScreen({ navigation }) {
         }
       >
         <View style={{ padding: 24 }}>
-          
+
           {/* Carte Niveau + XP + Streak */}
           <View style={{
             backgroundColor: 'rgba(255, 255, 255, 0.05)',

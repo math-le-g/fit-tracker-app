@@ -1,177 +1,291 @@
-import { View, Text } from 'react-native';
-import { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, BackHandler } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { db } from '../database/database';
+import { Ionicons } from '@expo/vector-icons';
 import ExerciseScreen from './ExerciseScreen';
 import RestTimerScreen from './RestTimerScreen';
 import ExerciseTransitionScreen from './ExerciseTransitionScreen';
+import WorkoutSummaryScreen from './WorkoutSummaryScreen';
+import * as Haptics from 'expo-haptics';
+import CustomModal from '../components/CustomModal';
 
 export default function WorkoutSessionScreen({ route, navigation }) {
-  const { routineId, exercises, warmupDuration } = route.params;
+  const { exercises: initialExercises, routineName } = route.params;
   
-  const [workoutId, setWorkoutId] = useState(null);
+  // État pour les exercices (modifiable maintenant)
+  const [exercises, setExercises] = useState(initialExercises);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
-  const [exercisesList, setExercisesList] = useState(exercises);
-  const [currentSet, setCurrentSet] = useState(1);
-  const [screenState, setScreenState] = useState('exercise'); // 'exercise' | 'rest' | 'transition'
-  const [workoutStartTime] = useState(Date.now());
+  const [currentSetIndex, setCurrentSetIndex] = useState(0);
+  const [currentPhase, setCurrentPhase] = useState('warmup');
+  const [workoutStartTime, setWorkoutStartTime] = useState(null);
+  const [warmupDuration, setWarmupDuration] = useState(0);
+  const [workoutId, setWorkoutId] = useState(null);
   const [completedSets, setCompletedSets] = useState([]);
-  const [currentExerciseCompletedSets, setCurrentExerciseCompletedSets] = useState([]);
+  const [allCompletedExercises, setAllCompletedExercises] = useState([]);
+  const [totalVolume, setTotalVolume] = useState(0);
+  const [totalSets, setTotalSets] = useState(0);
 
-  useEffect(() => {
-    createWorkout();
-  }, []);
+  // États pour le modal
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState({});
 
-  const createWorkout = async () => {
+  const currentExercise = exercises[currentExerciseIndex];
+
+  // Fonction pour mettre à jour la liste des exercices
+  const handleUpdateExercises = (newExercises) => {
+    setExercises(newExercises);
+  };
+
+  // Gérer le bouton retour Android
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        handlePause();
+        return true;
+      };
+
+      BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+    }, [])
+  );
+
+  const handlePause = () => {
+    setModalConfig({
+      title: '⏸️ Mettre en pause ?',
+      message: 'Ta séance sera sauvegardée',
+      icon: 'pause-circle',
+      iconColor: '#ffc107',
+      buttons: [
+        { text: 'Continuer', onPress: () => {} },
+        {
+          text: 'Mettre en pause',
+          style: 'destructive',
+          onPress: () => {
+            navigation.goBack();
+          }
+        }
+      ]
+    });
+    setModalVisible(true);
+  };
+
+  const startWarmup = () => {
+    setWorkoutStartTime(Date.now());
+    setCurrentPhase('warmup-timer');
+  };
+
+  const completeWarmup = (duration) => {
+    setWarmupDuration(duration);
+    setCurrentPhase('exercise');
+    initWorkout();
+  };
+
+  const initWorkout = async () => {
     try {
       const result = await db.runAsync(
-        'INSERT INTO workouts (date, type, warmup_duration, workout_duration, total_sets, total_volume, xp_gained) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [new Date().toISOString(), 'workout', warmupDuration, 0, 0, 0, 0]
+        'INSERT INTO workouts (date, type, warmup_duration, workout_duration) VALUES (?, ?, ?, ?)',
+        [new Date().toISOString(), 'musculation', warmupDuration, 0]
       );
-      
-      const insertedId = result.lastInsertRowId;
-      setWorkoutId(insertedId);
-      console.log('✅ Séance créée avec ID:', insertedId);
+      setWorkoutId(result.lastInsertRowId);
     } catch (error) {
-      console.error('❌ Erreur création séance:', error);
+      console.error('Erreur init workout:', error);
     }
   };
 
-  const handleSetComplete = async (weight, reps) => {
-    if (!workoutId) return;
-
+  const completeSet = async (weight, reps) => {
     try {
-      const currentExercise = exercisesList[currentExerciseIndex];  // ← CHANGÉ
+      if (!workoutId) return;
 
-      // Enregistrer la série dans la BDD
       await db.runAsync(
         'INSERT INTO sets (workout_id, exercise_id, set_number, weight, reps) VALUES (?, ?, ?, ?, ?)',
-        [workoutId, currentExercise.id, currentSet, weight, reps]
+        [workoutId, currentExercise.id, currentSetIndex + 1, weight, reps]
       );
 
-      // Ajouter aux séries complétées
-      const newSet = { exercise: currentExercise, set: currentSet, weight, reps };
-      setCompletedSets([...completedSets, newSet]);
-      setCurrentExerciseCompletedSets([...currentExerciseCompletedSets, newSet]);
+      const newCompletedSets = [...completedSets, { weight, reps }];
+      setCompletedSets(newCompletedSets);
+      setTotalVolume(prev => prev + (weight * reps));
+      setTotalSets(prev => prev + 1);
 
-      console.log(`✅ Série ${currentSet} enregistrée: ${weight}kg × ${reps} reps`);
-
-      // Vérifier s'il reste des séries pour cet exercice
-      if (currentSet < currentExercise.sets) {
-        // Passer au repos
-        setScreenState('rest');
+      if (currentSetIndex < currentExercise.sets - 1) {
+        setCurrentSetIndex(currentSetIndex + 1);
+        setCurrentPhase('rest');
       } else {
-        // Exercice terminé !
-        if (currentExerciseIndex < exercisesList.length - 1) {  // ← CHANGÉ
-          // Il y a un prochain exercice - écran de transition
-          setScreenState('transition');
-        } else {
-          // Tous les exercices terminés
-          finishWorkout();
-        }
+        completeExercise(newCompletedSets);
       }
     } catch (error) {
-      console.error('❌ Erreur enregistrement série:', error);
+      console.error('Erreur enregistrement série:', error);
     }
   };
 
-  const handleRestComplete = () => {
-    setCurrentSet(currentSet + 1);
-    setScreenState('exercise');
+  const completeExercise = (exerciseSets) => {
+    const exerciseData = {
+      exercise: currentExercise,
+      sets: exerciseSets
+    };
+    
+    setAllCompletedExercises([...allCompletedExercises, exerciseData]);
+    
+    if (currentExerciseIndex < exercises.length - 1) {
+      setCurrentPhase('transition');
+    } else {
+      finishWorkout();
+    }
   };
 
-  const handleStartNextExercise = () => {
-    // Passer à l'exercice suivant
+  const startNextExercise = () => {
     setCurrentExerciseIndex(currentExerciseIndex + 1);
-    setCurrentSet(1);
-    setCurrentExerciseCompletedSets([]);
-    setScreenState('exercise');
+    setCurrentSetIndex(0);
+    setCompletedSets([]);
+    setCurrentPhase('exercise');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
+
+  const finishRest = () => {
+    setCurrentPhase('exercise');
   };
 
   const finishWorkout = async () => {
-    const workoutDuration = Math.floor((Date.now() - workoutStartTime) / 1000);
-    
-    const totalVolume = completedSets.reduce((sum, set) => sum + (set.weight * set.reps), 0);
-    const totalSets = completedSets.length;
-    const xpGained = 25;
+    try {
+      const workoutDuration = Date.now() - workoutStartTime;
+      const xpGained = Math.floor((totalSets * 10) + (totalVolume / 100));
 
-    await db.runAsync(
-      'UPDATE workouts SET workout_duration = ?, total_sets = ?, total_volume = ?, xp_gained = ? WHERE id = ?',
-      [workoutDuration, totalSets, totalVolume, xpGained, workoutId]
-    );
+      await db.runAsync(
+        'UPDATE workouts SET workout_duration = ?, total_volume = ?, total_sets = ?, xp_gained = ? WHERE id = ?',
+        [Math.floor(workoutDuration / 1000), totalVolume, totalSets, xpGained, workoutId]
+      );
 
-    navigation.replace('WorkoutSummary', {
-      workoutId,
-      warmupDuration,
-      workoutDuration,
-      totalSets,
-      totalVolume,
-      xpGained
+      const user = await db.getFirstAsync('SELECT * FROM user WHERE id = 1');
+      const newXp = user.xp + xpGained;
+      const newLevel = Math.floor(newXp / 100) + 1;
+
+      await db.runAsync(
+        'UPDATE user SET xp = ?, level = ?, last_workout_date = ? WHERE id = 1',
+        [newXp, newLevel, new Date().toISOString()]
+      );
+
+      setCurrentPhase('summary');
+    } catch (error) {
+      console.error('Erreur fin workout:', error);
+    }
+  };
+
+  // Fonction pour gérer les exercices (modifier/supprimer/réorganiser)
+  const handleManageExercises = () => {
+    navigation.navigate('ManageWorkoutExercises', {
+      exercises: exercises,
+      currentIndex: currentExerciseIndex,
+      onReorder: (newExercises) => {
+        setExercises(newExercises);
+      }
     });
   };
 
-  const handleBack = () => {
-    // TODO: Gérer le retour en arrière pendant la séance
-    navigation.goBack();
-  };
+  // Rendu selon la phase
+  switch (currentPhase) {
+    case 'warmup':
+      return (
+        <View className="flex-1 bg-primary-dark p-6">
+          <View className="flex-1 justify-center items-center">
+            <View className="bg-primary-navy rounded-3xl p-8 w-full">
+              <Text className="text-white text-3xl font-bold text-center mb-2">
+                🔥 ÉCHAUFFEMENT
+              </Text>
+              <Text className="text-gray-400 text-center mb-6">
+                Prépare ton corps pour la séance
+              </Text>
 
-  if (!workoutId) {
-    return (
-      <View className="flex-1 bg-primary-dark items-center justify-center">
-        <Text className="text-white">Préparation...</Text>
-      </View>
-    );
+              <TouchableOpacity
+                className="bg-accent-cyan rounded-2xl p-5 mb-3"
+                onPress={startWarmup}
+              >
+                <Text className="text-primary-dark text-center text-xl font-bold">
+                  DÉMARRER L'ÉCHAUFFEMENT
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className="bg-primary-dark rounded-2xl p-4"
+                onPress={() => completeWarmup(0)}
+              >
+                <Text className="text-gray-400 text-center font-semibold">
+                  Passer l'échauffement
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      );
+
+    case 'warmup-timer':
+      return (
+        <RestTimerScreen
+          duration={300}
+          onComplete={completeWarmup}
+          isWarmup={true}
+          navigation={navigation}
+        />
+      );
+
+    case 'exercise':
+      return (
+        <ExerciseScreen
+          exercise={currentExercise}
+          setNumber={currentSetIndex + 1}
+          totalSets={currentExercise.sets}
+          onCompleteSet={completeSet}
+          previousSets={completedSets}
+          exerciseNumber={currentExerciseIndex + 1}
+          totalExercises={exercises.length}
+          onManageExercises={handleManageExercises}
+          navigation={navigation}
+        />
+      );
+
+    case 'rest':
+      return (
+        <RestTimerScreen
+          duration={currentExercise.rest_time}
+          onComplete={finishRest}
+          nextSet={currentSetIndex + 1}
+          totalSets={currentExercise.sets}
+          exerciseName={currentExercise.name}
+          navigation={navigation}
+        />
+      );
+
+    case 'transition':
+      return (
+        <ExerciseTransitionScreen
+          completedExercise={currentExercise}
+          completedSets={completedSets}
+          nextExercise={exercises[currentExerciseIndex + 1]}
+          exerciseNumber={currentExerciseIndex + 1}
+          totalExercises={exercises.length}
+          workoutStartTime={workoutStartTime}
+          warmupDuration={warmupDuration}
+          onStartNext={startNextExercise}
+          navigation={navigation}
+          exercisesList={exercises}
+          onUpdateExercises={handleUpdateExercises}
+        />
+      );
+
+    case 'summary':
+      return (
+        <WorkoutSummaryScreen
+          navigation={navigation}
+          workoutData={{
+            duration: Math.floor((Date.now() - workoutStartTime) / 1000),
+            totalVolume,
+            totalSets,
+            exercises: allCompletedExercises,
+            xpGained: Math.floor((totalSets * 10) + (totalVolume / 100))
+          }}
+        />
+      );
+
+    default:
+      return null;
   }
-
-  const currentExercise = exercisesList[currentExerciseIndex];  // ← CHANGÉ
-
-  // ÉCRAN TRANSITION ENTRE EXERCICES
-  if (screenState === 'transition') {
-    const nextExercise = exercisesList[currentExerciseIndex + 1];  // ← CHANGÉ
-    
-    return (
-      <ExerciseTransitionScreen
-        completedExercise={currentExercise}
-        completedSets={currentExerciseCompletedSets}
-        nextExercise={nextExercise}
-        exerciseNumber={currentExerciseIndex + 1}
-        totalExercises={exercisesList.length}  // ← CHANGÉ
-        workoutStartTime={workoutStartTime}
-        warmupDuration={warmupDuration}
-        onStartNext={handleStartNextExercise}
-      />
-    );
-  }
-
-  // ÉCRAN REPOS
-  if (screenState === 'rest') {
-    return (
-      <RestTimerScreen
-        exercise={currentExercise}
-        setNumber={currentSet}
-        totalSets={currentExercise.sets}
-        restTime={currentExercise.rest_time}
-        onComplete={handleRestComplete}
-        workoutStartTime={workoutStartTime}
-        warmupDuration={warmupDuration}
-      />
-    );
-  }
-
-  // ÉCRAN EXERCICE
-  return (
-    <ExerciseScreen
-      exercise={currentExercise}
-      setNumber={currentSet}
-      totalSets={currentExercise.sets}
-      onSetComplete={handleSetComplete}
-      workoutStartTime={workoutStartTime}
-      warmupDuration={warmupDuration}
-      exerciseIndex={currentExerciseIndex}
-      totalExercises={exercisesList.length}  // ← CHANGÉ
-      exercisesList={exercisesList}          // ← AJOUTÉ
-      setExercisesList={setExercisesList}    // ← AJOUTÉ
-      navigation={navigation}                // ← AJOUTÉ
-      onBack={handleBack}                    // ← AJOUTÉ
-    />
-  );
 }

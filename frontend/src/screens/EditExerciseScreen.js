@@ -24,7 +24,8 @@ export default function EditExerciseScreen({ route, navigation }) {
     'Biceps',
     'Triceps',
     'Abdominaux',
-    'Jambes'
+    'Jambes',
+    'Cardio'
   ];
 
   const equipmentList = [
@@ -35,7 +36,6 @@ export default function EditExerciseScreen({ route, navigation }) {
     'Poulie',
     'Élastiques',
     'Kettlebell',
-    'TRX',
     'Autre'
   ];
 

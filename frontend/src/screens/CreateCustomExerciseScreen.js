@@ -20,9 +20,10 @@ export default function CreateCustomExerciseScreen({ navigation }) {
     'Pectoraux',
     'Dos',
     'Épaules',
-    'Bras',
+    'Biceps',
+    'Triceps',
     'Jambes',
-    'Core',
+    'Abdominaux',
     'Cardio'
   ];
 
@@ -31,11 +32,10 @@ export default function CreateCustomExerciseScreen({ navigation }) {
     'Haltères',
     'Barre',
     'Machine',
-    'Câbles',
+    'Poulie',
     'Élastiques',
     'Kettlebell',
     'Swiss Ball',
-    'TRX',
     'Autre'
   ];
 
