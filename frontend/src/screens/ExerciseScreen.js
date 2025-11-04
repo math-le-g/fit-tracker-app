@@ -8,15 +8,12 @@ export default function ExerciseScreen({
   exercise,
   setNumber,
   totalSets,
-  onSetComplete,
-  workoutStartTime,
-  warmupDuration,
-  exerciseIndex,
+  onSetComplete,  // ✅ Nom correct
+  previousSets,   // ✅ Pour voir les séries déjà faites
+  exerciseNumber, // ✅ Nom correct (pas exerciseIndex)
   totalExercises,
-  exercisesList,      // ← AJOUTÉ
-  setExercisesList,   // ← AJOUTÉ
-  navigation,         // ← AJOUTÉ
-  onBack              // ← AJOUTÉ
+  onManageExercises, // ✅ Fonction pour gérer les exercices
+  navigation
 }) {
   const [weight, setWeight] = useState('');
   const [reps, setReps] = useState('');
@@ -82,7 +79,7 @@ export default function ExerciseScreen({
   const applySuggestion = (suggestionType) => {
     if (!suggestion) return;
     
-    if (suggestionType === 'suggested') {
+    if (suggestionType === 'suggested' || suggestionType === 'repeat') {
       setWeight(suggestion.weight.toString());
       setReps(suggestion.reps.toString());
     }
@@ -108,24 +105,11 @@ export default function ExerciseScreen({
     if (w > 0 && r > 0) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onSetComplete(w, r);
+      // Reset pour la prochaine série
+      setWeight('');
+      setReps('');
     }
   };
-
-  const formatTime = (ms) => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = totalSeconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const [elapsedTime, setElapsedTime] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setElapsedTime(Date.now() - workoutStartTime);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <ScrollView className="flex-1 bg-primary-dark">
@@ -133,31 +117,24 @@ export default function ExerciseScreen({
         {/* En-tête */}
         <View className="mb-6">
           <Text className="text-gray-400 text-sm mb-1">
-            Exercice {exerciseIndex + 1}/{totalExercises}
+            Exercice {exerciseNumber}/{totalExercises}
           </Text>
           <Text className="text-white text-3xl font-bold mb-2">
             {exercise.name}
           </Text>
           
-          {/* Ligne avec Série + Timer + Bouton Gérer */}
+          {/* Ligne avec Série et Bouton Gérer */}
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center">
               <Text className="text-accent-cyan text-xl font-bold">
                 Série {setNumber}/{totalSets}
-              </Text>
-              <Text className="text-gray-400 ml-4">
-                ⏱️ {formatTime(elapsedTime)}
               </Text>
             </View>
             
             {/* Bouton Gérer exercices */}
             <TouchableOpacity
               className="bg-primary-navy rounded-full p-2"
-              onPress={() => navigation.navigate('ManageWorkoutExercises', {
-                exercises: exercisesList,
-                currentIndex: exerciseIndex,
-                onReorder: (newList) => setExercisesList(newList)
-              })}
+              onPress={onManageExercises}
             >
               <Ionicons name="settings" size={24} color="#00f5ff" />
             </TouchableOpacity>
@@ -223,7 +200,7 @@ export default function ExerciseScreen({
         </View>
 
         {/* Dernière performance */}
-        {lastPerformance && (
+        {lastPerformance && lastPerformance.length > 0 && (
           <View className="bg-primary-navy rounded-2xl p-4 mb-4">
             <Text className="text-gray-400 text-sm mb-2">
               📊 DERNIÈRE FOIS
@@ -260,7 +237,7 @@ export default function ExerciseScreen({
           </View>
         )}
 
-         {/* Bouton valider */}
+        {/* Bouton valider */}
         <TouchableOpacity
           className="bg-success rounded-2xl p-5 mb-4"
           onPress={handleValidate}

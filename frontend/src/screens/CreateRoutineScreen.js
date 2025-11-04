@@ -13,14 +13,14 @@ export default function CreateRoutineScreen({ navigation }) {
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [muscleFilter, setMuscleFilter] = useState('all');
-  
+
   // Config pour nouvel exercice
   const [showExerciseConfig, setShowExerciseConfig] = useState(false);
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState(null);
-  const [newExerciseSets, setNewExerciseSets] = useState(0);  // ✅ CHANGÉ DE 3 À 0
+  const [newExerciseSets, setNewExerciseSets] = useState(0);
   const [newExerciseRestMinutes, setNewExerciseRestMinutes] = useState(1);
   const [newExerciseRestSeconds, setNewExerciseRestSeconds] = useState(30);
-  
+
   // États pour le modal
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState({});
@@ -53,7 +53,7 @@ export default function CreateRoutineScreen({ navigation }) {
 
   const selectExercise = (exercise) => {
     setSelectedExerciseToAdd(exercise);
-    setNewExerciseSets(0);  // ✅ CHANGÉ DE 3 À 0
+    setNewExerciseSets(0);
     setNewExerciseRestMinutes(1);
     setNewExerciseRestSeconds(30);
     setShowExercisePicker(false);
@@ -69,7 +69,7 @@ export default function CreateRoutineScreen({ navigation }) {
       sets: newExerciseSets,
       rest_time: totalRestSeconds
     };
-    
+
     setSelectedExercises([...selectedExercises, exerciseConfig]);
     setShowExerciseConfig(false);
     setSelectedExerciseToAdd(null);
@@ -85,7 +85,7 @@ export default function CreateRoutineScreen({ navigation }) {
   const moveExercise = (index, direction) => {
     const newList = [...selectedExercises];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    
+
     if (targetIndex >= 0 && targetIndex < newList.length) {
       [newList[index], newList[targetIndex]] = [newList[targetIndex], newList[index]];
       setSelectedExercises(newList);
@@ -100,7 +100,7 @@ export default function CreateRoutineScreen({ navigation }) {
         message: 'Donne un nom à ta routine !',
         icon: 'alert-circle',
         iconColor: '#ff4444',
-        buttons: [{ text: 'OK', style: 'primary', onPress: () => {} }]
+        buttons: [{ text: 'OK', style: 'primary', onPress: () => { } }]
       });
       setModalVisible(true);
       return;
@@ -112,7 +112,7 @@ export default function CreateRoutineScreen({ navigation }) {
         message: 'Ajoute au moins un exercice !',
         icon: 'alert-circle',
         iconColor: '#ff4444',
-        buttons: [{ text: 'OK', style: 'primary', onPress: () => {} }]
+        buttons: [{ text: 'OK', style: 'primary', onPress: () => { } }]
       });
       setModalVisible(true);
       return;
@@ -135,7 +135,7 @@ export default function CreateRoutineScreen({ navigation }) {
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      
+
       setModalConfig({
         title: '✅ Routine créée !',
         message: `"${routineName}" a été ajoutée à tes routines`,
@@ -157,7 +157,7 @@ export default function CreateRoutineScreen({ navigation }) {
         message: 'Impossible de créer la routine',
         icon: 'alert-circle',
         iconColor: '#ff4444',
-        buttons: [{ text: 'OK', style: 'primary', onPress: () => {} }]
+        buttons: [{ text: 'OK', style: 'primary', onPress: () => { } }]
       });
       setModalVisible(true);
     }
@@ -193,14 +193,12 @@ export default function CreateRoutineScreen({ navigation }) {
               {routineTypes.map(type => (
                 <TouchableOpacity
                   key={type.value}
-                  className={`px-4 py-2 rounded-xl ${
-                    routineType === type.value ? 'bg-accent-cyan' : 'bg-primary-navy'
-                  }`}
+                  className={`px-4 py-2 rounded-xl ${routineType === type.value ? 'bg-accent-cyan' : 'bg-primary-navy'
+                    }`}
                   onPress={() => setRoutineType(type.value)}
                 >
-                  <Text className={`font-semibold ${
-                    routineType === type.value ? 'text-primary-dark' : 'text-gray-400'
-                  }`}>
+                  <Text className={`font-semibold ${routineType === type.value ? 'text-primary-dark' : 'text-gray-400'
+                    }`}>
                     {type.icon} {type.label}
                   </Text>
                 </TouchableOpacity>
@@ -229,20 +227,20 @@ export default function CreateRoutineScreen({ navigation }) {
                       onPress={() => moveExercise(index, 'up')}
                       disabled={index === 0}
                     >
-                      <Ionicons 
-                        name="chevron-up" 
-                        size={20} 
-                        color={index === 0 ? '#374151' : '#fff'} 
+                      <Ionicons
+                        name="chevron-up"
+                        size={20}
+                        color={index === 0 ? '#374151' : '#fff'}
                       />
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => moveExercise(index, 'down')}
                       disabled={index === selectedExercises.length - 1}
                     >
-                      <Ionicons 
-                        name="chevron-down" 
-                        size={20} 
-                        color={index === selectedExercises.length - 1 ? '#374151' : '#fff'} 
+                      <Ionicons
+                        name="chevron-down"
+                        size={20}
+                        color={index === selectedExercises.length - 1 ? '#374151' : '#fff'}
                       />
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => removeExercise(index)}>
@@ -316,24 +314,36 @@ export default function CreateRoutineScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Filtres */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4 pb-3 bg-primary-navy">
-            {muscleGroups.map(muscle => (
-              <TouchableOpacity
-                key={muscle}
-                className={`mr-2 px-4 py-2 rounded-xl ${
-                  muscleFilter === muscle ? 'bg-accent-cyan' : 'bg-primary-dark'
-                }`}
-                onPress={() => setMuscleFilter(muscle)}
-              >
-                <Text className={`font-semibold ${
-                  muscleFilter === muscle ? 'text-primary-dark' : 'text-gray-400'
-                }`}>
-                  {muscle === 'all' ? 'Tous' : muscle}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          {/* ✅ CORRECTION - Filtres avec PETITE taille en style inline */}
+          <View style={{ backgroundColor: '#1a1f3a', paddingVertical: 8 }}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 16 }}
+            >
+              {muscleGroups.map((muscle, index) => (
+                <TouchableOpacity
+                  key={muscle}
+                  style={{
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 12,
+                    backgroundColor: muscleFilter === muscle ? '#00f5ff' : 'rgba(255, 255, 255, 0.1)',
+                    marginRight: index < muscleGroups.length - 1 ? 5 : 0
+                  }}
+                  onPress={() => setMuscleFilter(muscle)}
+                >
+                  <Text style={{
+                    fontSize: 11,
+                    fontWeight: '600',
+                    color: muscleFilter === muscle ? '#0a0e27' : '#a8a8a0'
+                  }}>
+                    {muscle === 'all' ? 'Tous' : muscle}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
 
           {/* Liste exercices */}
           <ScrollView className="flex-1">
@@ -410,7 +420,7 @@ export default function CreateRoutineScreen({ navigation }) {
                         <Ionicons name="add" size={24} color="#fff" />
                       </TouchableOpacity>
                     </View>
-                    
+
                     {/* Message d'avertissement si 0 série */}
                     {newExerciseSets === 0 && (
                       <Text className="text-amber-400 text-sm text-center mt-2">

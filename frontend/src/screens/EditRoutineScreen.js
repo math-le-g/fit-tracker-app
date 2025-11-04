@@ -7,7 +7,7 @@ import CustomModal from '../components/CustomModal';
 
 export default function EditRoutineScreen({ route, navigation }) {
   const { routineId } = route.params;
-  
+
   const [routineName, setRoutineName] = useState('');
   const [routineType, setRoutineType] = useState('');
   const [selectedExercises, setSelectedExercises] = useState([]);
@@ -15,20 +15,20 @@ export default function EditRoutineScreen({ route, navigation }) {
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [muscleFilter, setMuscleFilter] = useState('all');
-  
+
   // Config pour nouvel exercice
   const [showExerciseConfig, setShowExerciseConfig] = useState(false);
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState(null);
   const [newExerciseSets, setNewExerciseSets] = useState(0);  // ✅ CHANGÉ DE 3 À 0
   const [newExerciseRestMinutes, setNewExerciseRestMinutes] = useState(1);
   const [newExerciseRestSeconds, setNewExerciseRestSeconds] = useState(30);
-  
+
   // Config pour exercice existant
   const [editingExerciseIndex, setEditingExerciseIndex] = useState(null);
   const [editingSets, setEditingSets] = useState(0);
   const [editingRestMinutes, setEditingRestMinutes] = useState(0);
   const [editingRestSeconds, setEditingRestSeconds] = useState(0);
-  
+
   // États pour le modal
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState({});
@@ -55,7 +55,7 @@ export default function EditRoutineScreen({ route, navigation }) {
         'SELECT * FROM routines WHERE id = ?',
         [routineId]
       );
-      
+
       setRoutineName(routine.name);
       setRoutineType(routine.type || 'custom');
 
@@ -105,7 +105,7 @@ export default function EditRoutineScreen({ route, navigation }) {
       sets: newExerciseSets,
       rest_time: totalRestSeconds
     };
-    
+
     setSelectedExercises([...selectedExercises, exerciseConfig]);
     setShowExerciseConfig(false);
     setSelectedExerciseToAdd(null);
@@ -132,7 +132,7 @@ export default function EditRoutineScreen({ route, navigation }) {
       sets: editingSets,
       rest_time: totalRestSeconds
     };
-    
+
     setSelectedExercises(newList);
     setEditingExerciseIndex(null);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -147,7 +147,7 @@ export default function EditRoutineScreen({ route, navigation }) {
   const moveExercise = (index, direction) => {
     const newList = [...selectedExercises];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    
+
     if (targetIndex >= 0 && targetIndex < newList.length) {
       [newList[index], newList[targetIndex]] = [newList[targetIndex], newList[index]];
       setSelectedExercises(newList);
@@ -162,7 +162,7 @@ export default function EditRoutineScreen({ route, navigation }) {
         message: 'Donne un nom à ta routine !',
         icon: 'alert-circle',
         iconColor: '#ff4444',
-        buttons: [{ text: 'OK', style: 'primary', onPress: () => {} }]
+        buttons: [{ text: 'OK', style: 'primary', onPress: () => { } }]
       });
       setModalVisible(true);
       return;
@@ -174,7 +174,7 @@ export default function EditRoutineScreen({ route, navigation }) {
         message: 'Ajoute au moins un exercice !',
         icon: 'alert-circle',
         iconColor: '#ff4444',
-        buttons: [{ text: 'OK', style: 'primary', onPress: () => {} }]
+        buttons: [{ text: 'OK', style: 'primary', onPress: () => { } }]
       });
       setModalVisible(true);
       return;
@@ -203,7 +203,7 @@ export default function EditRoutineScreen({ route, navigation }) {
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      
+
       setModalConfig({
         title: '✅ Routine modifiée !',
         message: `"${routineName}" a été mise à jour`,
@@ -225,7 +225,7 @@ export default function EditRoutineScreen({ route, navigation }) {
         message: 'Impossible de modifier la routine',
         icon: 'alert-circle',
         iconColor: '#ff4444',
-        buttons: [{ text: 'OK', style: 'primary', onPress: () => {} }]
+        buttons: [{ text: 'OK', style: 'primary', onPress: () => { } }]
       });
       setModalVisible(true);
     }
@@ -238,7 +238,7 @@ export default function EditRoutineScreen({ route, navigation }) {
       icon: 'trash',
       iconColor: '#ff4444',
       buttons: [
-        { text: 'Annuler', onPress: () => {} },
+        { text: 'Annuler', onPress: () => { } },
         {
           text: 'Supprimer',
           style: 'destructive',
@@ -246,7 +246,7 @@ export default function EditRoutineScreen({ route, navigation }) {
             try {
               await db.runAsync('DELETE FROM routine_exercises WHERE routine_id = ?', [routineId]);
               await db.runAsync('DELETE FROM routines WHERE id = ?', [routineId]);
-              
+
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               navigation.goBack();
             } catch (error) {
@@ -289,14 +289,12 @@ export default function EditRoutineScreen({ route, navigation }) {
               {routineTypes.map(type => (
                 <TouchableOpacity
                   key={type.value}
-                  className={`px-4 py-2 rounded-xl ${
-                    routineType === type.value ? 'bg-accent-cyan' : 'bg-primary-navy'
-                  }`}
+                  className={`px-4 py-2 rounded-xl ${routineType === type.value ? 'bg-accent-cyan' : 'bg-primary-navy'
+                    }`}
                   onPress={() => setRoutineType(type.value)}
                 >
-                  <Text className={`font-semibold ${
-                    routineType === type.value ? 'text-primary-dark' : 'text-gray-400'
-                  }`}>
+                  <Text className={`font-semibold ${routineType === type.value ? 'text-primary-dark' : 'text-gray-400'
+                    }`}>
                     {type.icon} {type.label}
                   </Text>
                 </TouchableOpacity>
@@ -325,20 +323,20 @@ export default function EditRoutineScreen({ route, navigation }) {
                       onPress={() => moveExercise(index, 'up')}
                       disabled={index === 0}
                     >
-                      <Ionicons 
-                        name="chevron-up" 
-                        size={20} 
-                        color={index === 0 ? '#374151' : '#fff'} 
+                      <Ionicons
+                        name="chevron-up"
+                        size={20}
+                        color={index === 0 ? '#374151' : '#fff'}
                       />
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => moveExercise(index, 'down')}
                       disabled={index === selectedExercises.length - 1}
                     >
-                      <Ionicons 
-                        name="chevron-down" 
-                        size={20} 
-                        color={index === selectedExercises.length - 1 ? '#374151' : '#fff'} 
+                      <Ionicons
+                        name="chevron-down"
+                        size={20}
+                        color={index === selectedExercises.length - 1 ? '#374151' : '#fff'}
                       />
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => editExercise(index)}>
@@ -395,13 +393,12 @@ export default function EditRoutineScreen({ route, navigation }) {
         </View>
       </ScrollView>
 
-      {/* Modal sélection exercice (même que CreateRoutineScreen) */}
+      {/* Modal sélection exercice */}
       <Modal
         visible={showExercisePicker}
         animationType="slide"
         transparent={false}
       >
-        {/* Contenu identique à CreateRoutineScreen */}
         <View className="flex-1 bg-primary-dark">
           <View className="bg-primary-navy p-4 flex-row items-center justify-between">
             <Text className="text-white text-xl font-bold">Ajouter un exercice</Text>
@@ -423,23 +420,36 @@ export default function EditRoutineScreen({ route, navigation }) {
             </View>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4 pb-3 bg-primary-navy">
-            {muscleGroups.map(muscle => (
-              <TouchableOpacity
-                key={muscle}
-                className={`mr-2 px-4 py-2 rounded-xl ${
-                  muscleFilter === muscle ? 'bg-accent-cyan' : 'bg-primary-dark'
-                }`}
-                onPress={() => setMuscleFilter(muscle)}
-              >
-                <Text className={`font-semibold ${
-                  muscleFilter === muscle ? 'text-primary-dark' : 'text-gray-400'
-                }`}>
-                  {muscle === 'all' ? 'Tous' : muscle}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          {/* Filtres avec PETITE taille */}
+          <View style={{ backgroundColor: '#1a1f3a', paddingVertical: 8 }}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 16 }}
+            >
+              {muscleGroups.map((muscle, index) => (
+                <TouchableOpacity
+                  key={muscle}
+                  style={{
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 12,
+                    backgroundColor: muscleFilter === muscle ? '#00f5ff' : 'rgba(255, 255, 255, 0.1)',
+                    marginRight: index < muscleGroups.length - 1 ? 5 : 0
+                  }}
+                  onPress={() => setMuscleFilter(muscle)}
+                >
+                  <Text style={{
+                    fontSize: 11,
+                    fontWeight: '600',
+                    color: muscleFilter === muscle ? '#0a0e27' : '#a8a8a0'
+                  }}>
+                    {muscle === 'all' ? 'Tous' : muscle}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
 
           <ScrollView className="flex-1">
             <View className="p-4">
@@ -513,7 +523,7 @@ export default function EditRoutineScreen({ route, navigation }) {
                         <Ionicons name="add" size={24} color="#fff" />
                       </TouchableOpacity>
                     </View>
-                    
+
                     {newExerciseSets === 0 && (
                       <Text className="text-amber-400 text-sm text-center mt-2">
                         ⚠️ Tu dois définir au moins 1 série

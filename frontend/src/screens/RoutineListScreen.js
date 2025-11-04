@@ -209,9 +209,9 @@ export default function RoutineListScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Filtres groupes musculaires */}
+      {/* Filtres groupes musculaires avec taille réduite */}
       {activeTab === 'exercises' && (
-        <View style={{ backgroundColor: '#1a1f3a', paddingVertical: 12 }}>
+        <View style={{ backgroundColor: '#1a1f3a', paddingVertical: 8 }}>
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
@@ -221,13 +221,13 @@ export default function RoutineListScreen({ navigation }) {
               <TouchableOpacity
                 key={muscle}
                 style={{
-                  paddingHorizontal: 16,
-                  paddingVertical: 10,
-                  borderRadius: 20,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 16,
                   backgroundColor: muscleFilter === muscle ? '#00f5ff' : 'rgba(255, 255, 255, 0.1)',
                   borderWidth: 1,
                   borderColor: muscleFilter === muscle ? '#00f5ff' : 'transparent',
-                  marginRight: index < muscleGroups.length - 1 ? 8 : 0
+                  marginRight: index < muscleGroups.length - 1 ? 6 : 0
                 }}
                 onPress={() => {
                   setMuscleFilter(muscle);
@@ -235,7 +235,7 @@ export default function RoutineListScreen({ navigation }) {
                 }}
               >
                 <Text style={{
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: '600',
                   color: muscleFilter === muscle ? '#0a0e27' : '#a8a8a0'
                 }}>
@@ -316,25 +316,12 @@ export default function RoutineListScreen({ navigation }) {
                 </View>
               </TouchableOpacity>
 
-              {/* Info actions */}
-              <View className="bg-primary-navy/50 rounded-xl p-3 mb-3">
-                <Text className="text-gray-400 text-center text-sm">
-                  💡 Appui long ou boutons pour modifier/supprimer
-                </Text>
-              </View>
-
-              {/* Liste exercices avec boutons modifier/supprimer */}
+              {/* Liste exercices SANS TouchableOpacity et sans chevron */}
               {filteredExercises.length > 0 ? (
                 filteredExercises.map(ex => (
-                  <TouchableOpacity
+                  <View
                     key={ex.id}
                     className="bg-primary-navy rounded-2xl p-4 mb-3"
-                    onPress={() => navigation.navigate('ExerciseDetail', { exerciseId: ex.id })}
-                    onLongPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                      deleteExercise(ex);
-                    }}
-                    delayLongPress={500}
                   >
                     <View className="flex-row items-center justify-between">
                       <View className="flex-1">
@@ -347,31 +334,23 @@ export default function RoutineListScreen({ navigation }) {
                         </Text>
                       </View>
                       
-                      <View className="flex-row items-center">
+                      <View className="flex-row items-center gap-2">
                         <TouchableOpacity
-                          className="bg-primary-dark rounded-full p-2 mr-2"
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            editExercise(ex);
-                          }}
+                          className="bg-primary-dark rounded-full p-2"
+                          onPress={() => editExercise(ex)}
                         >
                           <Ionicons name="create" size={20} color="#00f5ff" />
                         </TouchableOpacity>
                         
                         <TouchableOpacity
-                          className="bg-danger/20 rounded-full p-2 mr-2"
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            deleteExercise(ex);
-                          }}
+                          className="bg-danger/20 rounded-full p-2"
+                          onPress={() => deleteExercise(ex)}
                         >
                           <Ionicons name="trash" size={20} color="#ff4444" />
                         </TouchableOpacity>
-                        
-                        <Ionicons name="chevron-forward" size={24} color="#6b7280" />
                       </View>
                     </View>
-                  </TouchableOpacity>
+                  </View>
                 ))
               ) : (
                 <View className="bg-primary-navy rounded-2xl p-6">

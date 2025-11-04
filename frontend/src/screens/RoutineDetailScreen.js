@@ -73,21 +73,12 @@ export default function RoutineDetailScreen({ route, navigation }) {
   };
 
   const startWorkout = () => {
-    if (warmupDuration > 0) {
-      // Aller à l'échauffement
-      navigation.navigate('Warmup', { 
-        routineId, 
-        warmupDuration,
-        exercises 
-      });
-    } else {
-      // Passer directement aux exercices
-      navigation.navigate('WorkoutSession', { 
-        routineId,
-        exercises,
-        warmupDuration: 0
-      });
-    }
+    // ✅ CORRECTION ICI : Passer skipWarmup et routineName
+    navigation.navigate('WorkoutSession', { 
+      exercises,
+      routineName: routine.name,
+      skipWarmup: warmupDuration === 0  // true si pas d'échauffement sélectionné
+    });
   };
 
   const handleModifyRoutine = () => {
@@ -330,14 +321,14 @@ export default function RoutineDetailScreen({ route, navigation }) {
             </Text>
           </View>
         </TouchableOpacity>
-
-        {/* Modal custom */}
-        <CustomModal
-          visible={modalVisible}
-          onClose={() => setModalVisible(false)}
-          {...modalConfig}
-        />
       </View>
+
+      {/* Modal custom */}
+      <CustomModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        {...modalConfig}
+      />
     </ScrollView>
   );
 }

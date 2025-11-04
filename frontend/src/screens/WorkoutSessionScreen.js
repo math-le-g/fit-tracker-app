@@ -11,13 +11,13 @@ import * as Haptics from 'expo-haptics';
 import CustomModal from '../components/CustomModal';
 
 export default function WorkoutSessionScreen({ route, navigation }) {
-  const { exercises: initialExercises, routineName } = route.params;
+  const { exercises: initialExercises, routineName, skipWarmup } = route.params;
   
-  // État pour les exercices (modifiable maintenant)
+  // État pour les exercices
   const [exercises, setExercises] = useState(initialExercises);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [currentSetIndex, setCurrentSetIndex] = useState(0);
-  const [currentPhase, setCurrentPhase] = useState('warmup');
+  const [currentPhase, setCurrentPhase] = useState(skipWarmup ? 'exercise' : 'warmup');
   const [workoutStartTime, setWorkoutStartTime] = useState(null);
   const [warmupDuration, setWarmupDuration] = useState(0);
   const [workoutId, setWorkoutId] = useState(null);
@@ -32,6 +32,15 @@ export default function WorkoutSessionScreen({ route, navigation }) {
 
   const currentExercise = exercises[currentExerciseIndex];
 
+  // ✅ CORRECTION: Initialisation si on passe l'échauffement
+  useEffect(() => {
+    if (skipWarmup && !workoutStartTime) {
+      setWorkoutStartTime(Date.now());
+      setWarmupDuration(0);
+      initWorkout();
+    }
+  }, [skipWarmup]);
+
   // Fonction pour mettre à jour la liste des exercices
   const handleUpdateExercises = (newExercises) => {
     setExercises(newExercises);
@@ -45,8 +54,10 @@ export default function WorkoutSessionScreen({ route, navigation }) {
         return true;
       };
 
-      BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      
+      // ✅ CORRECTION: Utilise subscription.remove()
+      return () => subscription.remove();
     }, [])
   );
 
@@ -78,24 +89,39 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   const completeWarmup = (duration) => {
     setWarmupDuration(duration);
     setCurrentPhase('exercise');
-    initWorkout();
+    if (!workoutId) {
+      initWorkout();
+    }
   };
 
   const initWorkout = async () => {
     try {
       const result = await db.runAsync(
         'INSERT INTO workouts (date, type, warmup_duration, workout_duration) VALUES (?, ?, ?, ?)',
-        [new Date().toISOString(), 'musculation', warmupDuration, 0]
+        [new Date().toISOString(), 'musculation', warmupDuration || 0, 0]
       );
       setWorkoutId(result.lastInsertRowId);
+      console.log('✅ Workout initié avec ID:', result.lastInsertRowId);
     } catch (error) {
-      console.error('Erreur init workout:', error);
+      console.error('❌ Erreur init workout:', error);
     }
   };
 
   const completeSet = async (weight, reps) => {
     try {
-      if (!workoutId) return;
+      // ✅ VÉRIFICATION: S'assurer que currentExercise existe
+      if (!currentExercise) {
+        console.error('❌ currentExercise est undefined!');
+        console.log('currentExerciseIndex:', currentExerciseIndex);
+        console.log('exercises:', exercises);
+        return;
+      }
+
+      if (!workoutId) {
+        console.log('⚠️ Workout pas encore initialisé, initialisation...');
+        await initWorkout();
+        return;
+      }
 
       await db.runAsync(
         'INSERT INTO sets (workout_id, exercise_id, set_number, weight, reps) VALUES (?, ?, ?, ?, ?)',
@@ -114,7 +140,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
         completeExercise(newCompletedSets);
       }
     } catch (error) {
-      console.error('Erreur enregistrement série:', error);
+      console.error('❌ Erreur enregistrement série:', error);
     }
   };
 
@@ -170,7 +196,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     }
   };
 
-  // Fonction pour gérer les exercices (modifier/supprimer/réorganiser)
+  // Fonction pour gérer les exercices
   const handleManageExercises = () => {
     navigation.navigate('ManageWorkoutExercises', {
       exercises: exercises,
@@ -180,6 +206,26 @@ export default function WorkoutSessionScreen({ route, navigation }) {
       }
     });
   };
+
+  // ✅ VÉRIFICATION: Si pas d'exercice, afficher un message
+  if (!currentExercise && currentPhase === 'exercise') {
+    return (
+      <View className="flex-1 bg-primary-dark items-center justify-center p-6">
+        <Text className="text-white text-xl text-center">
+          ⚠️ Problème avec l'exercice
+        </Text>
+        <Text className="text-gray-400 text-center mt-2">
+          L'exercice n'a pas pu être chargé
+        </Text>
+        <TouchableOpacity
+          className="bg-primary-navy rounded-xl p-4 mt-4"
+          onPress={() => navigation.goBack()}
+        >
+          <Text className="text-white">Retour</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   // Rendu selon la phase
   switch (currentPhase) {
@@ -233,7 +279,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
           exercise={currentExercise}
           setNumber={currentSetIndex + 1}
           totalSets={currentExercise.sets}
-          onCompleteSet={completeSet}
+          onSetComplete={completeSet}
           previousSets={completedSets}
           exerciseNumber={currentExerciseIndex + 1}
           totalExercises={exercises.length}

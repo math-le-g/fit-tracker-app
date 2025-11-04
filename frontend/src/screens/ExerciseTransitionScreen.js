@@ -138,7 +138,7 @@ export default function ExerciseTransitionScreen({
             <View className="flex-row items-center justify-between mb-4">
               <View className="flex-1">
                 <Text className="text-gray-400 text-sm mb-1">
-                  Exercice {exerciseNumber + 1}/{totalExercices}
+                  Exercice {exerciseNumber + 1}/{totalExercises}
                 </Text>
                 <Text className="text-white text-xl font-bold">
                   {nextExercise.name}
