@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import ExerciseScreen from './ExerciseScreen';
 import RestTimerScreen from './RestTimerScreen';
 import ExerciseTransitionScreen from './ExerciseTransitionScreen';
-import WorkoutSummaryScreen from './WorkoutSummaryScreen';
 import * as Haptics from 'expo-haptics';
 import CustomModal from '../components/CustomModal';
 
@@ -56,7 +55,6 @@ export default function WorkoutSessionScreen({ route, navigation }) {
 
       const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
       
-      // ✅ CORRECTION: Utilise subscription.remove()
       return () => subscription.remove();
     }, [])
   );
@@ -109,7 +107,6 @@ export default function WorkoutSessionScreen({ route, navigation }) {
 
   const completeSet = async (weight, reps) => {
     try {
-      // ✅ VÉRIFICATION: S'assurer que currentExercise existe
       if (!currentExercise) {
         console.error('❌ currentExercise est undefined!');
         console.log('currentExerciseIndex:', currentExerciseIndex);
@@ -173,12 +170,12 @@ export default function WorkoutSessionScreen({ route, navigation }) {
 
   const finishWorkout = async () => {
     try {
-      const workoutDuration = Date.now() - workoutStartTime;
+      const workoutDuration = Math.floor((Date.now() - workoutStartTime) / 1000);
       const xpGained = Math.floor((totalSets * 10) + (totalVolume / 100));
 
       await db.runAsync(
         'UPDATE workouts SET workout_duration = ?, total_volume = ?, total_sets = ?, xp_gained = ? WHERE id = ?',
-        [Math.floor(workoutDuration / 1000), totalVolume, totalSets, xpGained, workoutId]
+        [workoutDuration, totalVolume, totalSets, xpGained, workoutId]
       );
 
       const user = await db.getFirstAsync('SELECT * FROM user WHERE id = 1');
@@ -190,7 +187,15 @@ export default function WorkoutSessionScreen({ route, navigation }) {
         [newXp, newLevel, new Date().toISOString()]
       );
 
-      setCurrentPhase('summary');
+      // ✅ CORRECTION: Naviguer vers WorkoutSummary au lieu de le rendre
+      navigation.replace('WorkoutSummary', {
+        workoutId: workoutId,
+        warmupDuration: warmupDuration,
+        workoutDuration: workoutDuration,
+        totalSets: totalSets,
+        totalVolume: totalVolume,
+        xpGained: xpGained
+      });
     } catch (error) {
       console.error('Erreur fin workout:', error);
     }
@@ -317,21 +322,10 @@ export default function WorkoutSessionScreen({ route, navigation }) {
         />
       );
 
-    case 'summary':
-      return (
-        <WorkoutSummaryScreen
-          navigation={navigation}
-          workoutData={{
-            duration: Math.floor((Date.now() - workoutStartTime) / 1000),
-            totalVolume,
-            totalSets,
-            exercises: allCompletedExercises,
-            xpGained: Math.floor((totalSets * 10) + (totalVolume / 100))
-          }}
-        />
-      );
-
     default:
       return null;
   }
 }
+
+
+

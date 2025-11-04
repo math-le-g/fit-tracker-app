@@ -23,9 +23,12 @@ export default function ExerciseTransitionScreen({
   };
 
   const handleReplaceExercise = () => {
-    navigation.navigate('SelectReplacementExercise', {
+    // ✅ CORRECTION: Utiliser push au lieu de navigate pour éviter de créer un nouveau workout
+    navigation.push('SelectReplacementExercise', {
       currentExercise: nextExercise,
       onReplace: (newExercise) => {
+        console.log('🔄 Remplacement de l\'exercice:', nextExercise.name, '→', newExercise.name);
+        
         // Créer une nouvelle liste avec l'exercice remplacé
         const newList = [...exercisesList];
         newList[exerciseNumber] = {
@@ -33,12 +36,14 @@ export default function ExerciseTransitionScreen({
           sets: nextExercise.sets,
           rest_time: nextExercise.rest_time
         };
+        
         // Mettre à jour la liste
         if (onUpdateExercises) {
           onUpdateExercises(newList);
+          console.log('✅ Liste d\'exercices mise à jour');
+        } else {
+          console.warn('⚠️ onUpdateExercises n\'est pas défini');
         }
-        // Rafraîchir l'écran avec le nouvel exercice
-        navigation.goBack();
       }
     });
   };

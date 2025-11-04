@@ -27,23 +27,25 @@ export default function SelectReplacementExerciseScreen({ route, navigation }) {
   };
 
   const selectExercise = (exercise) => {
-    onReplace(exercise);
+    // ✅ CORRECTION: Appeler onReplace AVANT goBack
+    if (onReplace) {
+      onReplace(exercise);
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // Retourner directement sans naviguer
     navigation.goBack();
   };
 
-  // Filtrer les exercices
   const filteredExercises = exercises.filter(ex => {
     const matchesSearch = ex.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesMuscle = muscleFilter === 'all' || ex.muscle_group === muscleFilter;
     return matchesSearch && matchesMuscle;
   });
 
-  // Recommandations (même groupe musculaire)
   const recommended = filteredExercises.filter(ex => ex.muscle_group === currentExercise.muscle_group);
   const others = filteredExercises.filter(ex => ex.muscle_group !== currentExercise.muscle_group);
 
-  const muscleGroups = ['all', 'Pectoraux', 'Dos', 'Épaules', 'Bras', 'Jambes', 'Core'];
+  const muscleGroups = ['all', 'Pectoraux', 'Dos', 'Épaules', 'Biceps', 'Triceps', 'Jambes', 'Abdominaux'];
 
   return (
     <View className="flex-1 bg-primary-dark">
@@ -78,24 +80,41 @@ export default function SelectReplacementExerciseScreen({ route, navigation }) {
         </View>
       </View>
 
-      {/* Filtres groupes musculaires */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4 py-3 bg-primary-navy">
-        {muscleGroups.map(muscle => (
-          <TouchableOpacity
-            key={muscle}
-            className={`mr-2 px-4 py-2 rounded-xl ${
-              muscleFilter === muscle ? 'bg-accent-cyan' : 'bg-primary-dark'
-            }`}
-            onPress={() => setMuscleFilter(muscle)}
-          >
-            <Text className={`font-semibold ${
-              muscleFilter === muscle ? 'text-primary-dark' : 'text-gray-400'
-            }`}>
-              {muscle === 'all' ? 'Tous' : muscle}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      {/* ✅ CORRECTION: Filtres avec taille réduite */}
+      <View style={{ backgroundColor: '#1a1f3a', paddingVertical: 8 }}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+        >
+          {muscleGroups.map((muscle, index) => (
+            <TouchableOpacity
+              key={muscle}
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 16,
+                backgroundColor: muscleFilter === muscle ? '#00f5ff' : 'rgba(255, 255, 255, 0.1)',
+                borderWidth: 1,
+                borderColor: muscleFilter === muscle ? '#00f5ff' : 'transparent',
+                marginRight: index < muscleGroups.length - 1 ? 6 : 0
+              }}
+              onPress={() => {
+                setMuscleFilter(muscle);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+            >
+              <Text style={{
+                fontSize: 13,
+                fontWeight: '600',
+                color: muscleFilter === muscle ? '#0a0e27' : '#a8a8a0'
+              }}>
+                {muscle === 'all' ? 'Tous' : muscle}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Liste exercices */}
       <ScrollView className="flex-1">
