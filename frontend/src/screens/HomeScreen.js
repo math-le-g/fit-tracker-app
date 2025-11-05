@@ -104,43 +104,48 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
+  // ✅ CORRECTION: Simplification de la logique de dates pour éviter les bugs
   const loadWeekActivities = async () => {
     try {
       const today = new Date();
+      today.setHours(23, 59, 59, 999); // Fin de journée
       const activities = [];
 
       for (let i = 6; i >= 0; i--) {
+        // Date du jour à traiter (il y a i jours)
         const date = new Date(today);
         date.setDate(today.getDate() - i);
-        date.setHours(0, 0, 0, 0);
-
+        date.setHours(0, 0, 0, 0); // Début de journée
+        
+        // Date de fin (lendemain à 00:00)
         const nextDate = new Date(date);
         nextDate.setDate(date.getDate() + 1);
+        nextDate.setHours(0, 0, 0, 0);
 
         const dayName = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'][date.getDay()];
+        const isToday = date.toDateString() === new Date().toDateString();
 
-        // Chercher séance musculation du JOUR
+        // ✅ Requêtes simplifiées avec comparaisons de strings ISO
+        const dateStart = date.toISOString();
+        const dateEnd = nextDate.toISOString();
+
+        // Chercher séance musculation
         const workout = await db.getFirstAsync(`
-        SELECT *
-        FROM workouts
-        WHERE datetime(date) >= datetime(?) 
-        AND datetime(date) < datetime(?)
-        ORDER BY date DESC
-        LIMIT 1
-      `, [date.toISOString(), nextDate.toISOString()]);
+          SELECT * FROM workouts 
+          WHERE date >= ? AND date < ?
+          ORDER BY date DESC
+          LIMIT 1
+        `, [dateStart, dateEnd]);
 
-        // Chercher course du JOUR
+        // Chercher course
         const run = await db.getFirstAsync(`
-        SELECT *
-        FROM runs
-        WHERE datetime(date) >= datetime(?)
-        AND datetime(date) < datetime(?)
-        ORDER BY date DESC
-        LIMIT 1
-      `, [date.toISOString(), nextDate.toISOString()]);
+          SELECT * FROM runs 
+          WHERE date >= ? AND date < ?
+          ORDER BY date DESC
+          LIMIT 1
+        `, [dateStart, dateEnd]);
 
-        const isToday = date.toDateString() === today.toDateString();
-
+        // Construire l'activité du jour
         if (workout) {
           const workoutDate = new Date(workout.date);
           const hours = workoutDate.getHours().toString().padStart(2, '0');
@@ -179,6 +184,7 @@ export default function HomeScreen({ navigation }) {
       }
 
       setWeekActivities(activities);
+      console.log('✅ Activités de la semaine chargées:', activities.length);
     } catch (error) {
       console.error('Erreur activités semaine:', error);
     }

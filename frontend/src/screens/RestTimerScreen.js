@@ -1,7 +1,8 @@
-import { View, Text, TouchableOpacity } from 'react-native';
-import { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Animated } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 
 export default function RestTimerScreen({
   duration = 90,
@@ -15,6 +16,10 @@ export default function RestTimerScreen({
   const [timeLeft, setTimeLeft] = useState(duration);
   const [isPaused, setIsPaused] = useState(false);
   const [hasCompleted, setHasCompleted] = useState(false);
+  
+  // ✨ Animations
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (isPaused || hasCompleted) return;
@@ -31,7 +36,49 @@ export default function RestTimerScreen({
     return () => clearInterval(interval);
   }, [isPaused, hasCompleted]);
 
-  // ✅ Effet séparé pour gérer la fin du timer
+  // ✨ Animation de pulse (respiration)
+  useEffect(() => {
+    if (isPaused || hasCompleted) return;
+
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    const glow = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(glowAnim, {
+          toValue: 0,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    pulse.start();
+    glow.start();
+
+    return () => {
+      pulse.stop();
+      glow.stop();
+    };
+  }, [isPaused, hasCompleted]);
+
   useEffect(() => {
     if (timeLeft === 0 && !hasCompleted) {
       setHasCompleted(true);
@@ -59,17 +106,26 @@ export default function RestTimerScreen({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const progress = ((duration - timeLeft) / duration) * 100;
+  const progress = (timeLeft / duration) * 100;
+  const size = 280;
+  const strokeWidth = 12;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const strokeDashoffset = circumference - (progress / 100) * circumference;
+  
+  const color = timeLeft <= 10 ? '#ff4444' : '#00f5ff';
+  const glowOpacity = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 1],
+  });
 
   return (
     <View className="flex-1 bg-primary-dark p-6">
       <View className="flex-1 justify-center items-center">
-        {/* Type de repos */}
         <Text className="text-gray-400 text-lg mb-2">
           {isWarmup ? '🔥 ÉCHAUFFEMENT' : '💪 REPOS'}
         </Text>
 
-        {/* Info exercice - AVEC VÉRIFICATION */}
         {!isWarmup && exerciseName && (
           <View className="mb-8">
             <Text className="text-white text-2xl font-bold text-center mb-2">
@@ -83,23 +139,81 @@ export default function RestTimerScreen({
           </View>
         )}
 
-        {/* Timer circulaire */}
-        <View className="relative w-64 h-64 items-center justify-center mb-8">
-          {/* Cercle de progression */}
-          <View
-            className="absolute w-full h-full rounded-full border-8 border-primary-navy"
-            style={{
-              borderLeftColor: timeLeft <= 10 ? '#ff4444' : '#00f5ff',
-              borderTopColor: timeLeft <= 10 ? '#ff4444' : '#00f5ff',
-              transform: [{ rotate: `${(progress * 3.6)}deg` }]
-            }}
-          />
+        {/* ✨ Timer avec effet PULSE + GLOW */}
+        <Animated.View 
+          className="relative items-center justify-center mb-8"
+          style={{ 
+            width: size, 
+            height: size,
+            transform: [{ scale: pulseAnim }]
+          }}
+        >
+          {/* Cercle de fond avec glow */}
+          <Svg width={size} height={size} style={{ position: 'absolute' }}>
+            <Defs>
+              <RadialGradient id="glow" cx="50%" cy="50%">
+                <Stop offset="0%" stopColor={color} stopOpacity="0.4" />
+                <Stop offset="100%" stopColor={color} stopOpacity="0" />
+              </RadialGradient>
+            </Defs>
+            {/* Effet de glow externe */}
+            <Circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius + 30}
+              fill="url(#glow)"
+            />
+            {/* Cercle de fond */}
+            <Circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke="#1a1f3a"
+              strokeWidth={strokeWidth}
+              fill="none"
+            />
+          </Svg>
+          
+          {/* Cercle de progression avec glow animé */}
+          <Animated.View style={{ opacity: glowOpacity, position: 'absolute' }}>
+            <Svg 
+              width={size} 
+              height={size} 
+              style={{ transform: [{ rotate: '-90deg' }] }}
+            >
+              {/* Effet de halo */}
+              <Circle
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                stroke={color}
+                strokeWidth={strokeWidth + 4}
+                fill="none"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                opacity={0.3}
+              />
+              {/* Cercle principal */}
+              <Circle
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                stroke={color}
+                strokeWidth={strokeWidth}
+                fill="none"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+              />
+            </Svg>
+          </Animated.View>
 
-          {/* Timer */}
+          {/* Timer au centre */}
           <View className="items-center">
             <Text className={`text-6xl font-bold ${
               timeLeft <= 10 ? 'text-danger' : 'text-white'
-            }`}>
+            }`} style={{ textShadowColor: color, textShadowRadius: 20, textShadowOffset: { width: 0, height: 0 } }}>
               {formatTime(timeLeft)}
             </Text>
             <TouchableOpacity
@@ -113,7 +227,7 @@ export default function RestTimerScreen({
               />
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Boutons ajuster */}
         <View className="mb-6">
@@ -165,7 +279,6 @@ export default function RestTimerScreen({
           </View>
         </View>
 
-        {/* Bouton passer */}
         <TouchableOpacity
           className="bg-accent-cyan rounded-2xl px-12 py-4"
           onPress={skipRest}
@@ -176,7 +289,6 @@ export default function RestTimerScreen({
           </Text>
         </TouchableOpacity>
 
-        {/* Conseils */}
         {!isWarmup && (
           <View className="mt-6 bg-primary-navy rounded-xl p-4">
             <Text className="text-gray-400 text-center text-sm">

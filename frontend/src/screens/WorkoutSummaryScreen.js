@@ -200,7 +200,6 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
           </View>
         )}
 
-
         {/* Détails exercices */}
         <View className="bg-primary-navy rounded-2xl p-6 mb-6">
           <Text className="text-white text-xl font-bold mb-4">
@@ -225,7 +224,7 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
           ))}
         </View>
 
-        {/* Boutons actions */}
+        {/* Bouton terminer - BOUTON PARTAGER SUPPRIMÉ */}
         <TouchableOpacity
           className="bg-accent-cyan rounded-2xl p-5 mb-3"
           onPress={() => {
@@ -238,18 +237,6 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
           <Text className="text-primary-dark text-center text-xl font-bold">
             ✓ TERMINER
           </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          className="bg-primary-navy rounded-2xl p-4"
-          onPress={() => {/* TODO: Partager */ }}
-        >
-          <View className="flex-row items-center justify-center">
-            <Ionicons name="share-social" size={20} color="#6b7280" />
-            <Text className="text-gray-400 font-semibold ml-2">
-              Partager ma séance
-            </Text>
-          </View>
         </TouchableOpacity>
       </View>
     </ScrollView>
