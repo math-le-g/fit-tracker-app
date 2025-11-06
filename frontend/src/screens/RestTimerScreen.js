@@ -11,12 +11,17 @@ export default function RestTimerScreen({
   nextSet,
   totalSets,
   exerciseName,
+  onQuitSession,
   navigation
 }) {
+
+  console.log('🔍 RestTimer - onQuitSession:', onQuitSession ? 'REÇU ✅' : 'UNDEFINED ❌');
+
+
   const [timeLeft, setTimeLeft] = useState(duration);
   const [isPaused, setIsPaused] = useState(false);
   const [hasCompleted, setHasCompleted] = useState(false);
-  
+
   // ✨ Animations
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -112,7 +117,7 @@ export default function RestTimerScreen({
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const strokeDashoffset = circumference - (progress / 100) * circumference;
-  
+
   const color = timeLeft <= 10 ? '#ff4444' : '#00f5ff';
   const glowOpacity = glowAnim.interpolate({
     inputRange: [0, 1],
@@ -120,7 +125,24 @@ export default function RestTimerScreen({
   });
 
   return (
-    <View className="flex-1 bg-primary-dark p-6">
+  <View className="flex-1 bg-primary-dark">
+    {/* 🆕 BOUTON EN DEHORS */}
+    <View className="absolute top-4 right-4 z-50" style={{ elevation: 999 }}>
+      <TouchableOpacity
+        className="bg-danger/20 rounded-full p-3"
+        onPress={() => {
+          console.log('🔴 BOUTON CLIQUÉ !');
+          if (onQuitSession) {
+            onQuitSession();
+          }
+        }}
+      >
+        <Ionicons name="close" size={24} color="#ff4444" />
+      </TouchableOpacity>
+    </View>
+
+    {/* CONTENU AVEC PADDING */}
+    <View className="flex-1 p-6">
       <View className="flex-1 justify-center items-center">
         <Text className="text-gray-400 text-lg mb-2">
           {isWarmup ? '🔥 ÉCHAUFFEMENT' : '💪 REPOS'}
@@ -140,10 +162,10 @@ export default function RestTimerScreen({
         )}
 
         {/* ✨ Timer avec effet PULSE + GLOW */}
-        <Animated.View 
+        <Animated.View
           className="relative items-center justify-center mb-8"
-          style={{ 
-            width: size, 
+          style={{
+            width: size,
             height: size,
             transform: [{ scale: pulseAnim }]
           }}
@@ -156,14 +178,12 @@ export default function RestTimerScreen({
                 <Stop offset="100%" stopColor={color} stopOpacity="0" />
               </RadialGradient>
             </Defs>
-            {/* Effet de glow externe */}
             <Circle
               cx={size / 2}
               cy={size / 2}
               r={radius + 30}
               fill="url(#glow)"
             />
-            {/* Cercle de fond */}
             <Circle
               cx={size / 2}
               cy={size / 2}
@@ -173,15 +193,14 @@ export default function RestTimerScreen({
               fill="none"
             />
           </Svg>
-          
+
           {/* Cercle de progression avec glow animé */}
           <Animated.View style={{ opacity: glowOpacity, position: 'absolute' }}>
-            <Svg 
-              width={size} 
-              height={size} 
+            <Svg
+              width={size}
+              height={size}
               style={{ transform: [{ rotate: '-90deg' }] }}
             >
-              {/* Effet de halo */}
               <Circle
                 cx={size / 2}
                 cy={size / 2}
@@ -194,7 +213,6 @@ export default function RestTimerScreen({
                 strokeLinecap="round"
                 opacity={0.3}
               />
-              {/* Cercle principal */}
               <Circle
                 cx={size / 2}
                 cy={size / 2}
@@ -211,9 +229,10 @@ export default function RestTimerScreen({
 
           {/* Timer au centre */}
           <View className="items-center">
-            <Text className={`text-6xl font-bold ${
-              timeLeft <= 10 ? 'text-danger' : 'text-white'
-            }`} style={{ textShadowColor: color, textShadowRadius: 20, textShadowOffset: { width: 0, height: 0 } }}>
+            <Text
+              className={`text-6xl font-bold ${timeLeft <= 10 ? 'text-danger' : 'text-white'}`}
+              style={{ textShadowColor: color, textShadowRadius: 20, textShadowOffset: { width: 0, height: 0 } }}
+            >
               {formatTime(timeLeft)}
             </Text>
             <TouchableOpacity
@@ -298,5 +317,6 @@ export default function RestTimerScreen({
         )}
       </View>
     </View>
-  );
+  </View>
+);
 }

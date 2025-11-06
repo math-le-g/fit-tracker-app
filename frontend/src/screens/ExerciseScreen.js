@@ -13,6 +13,7 @@ export default function ExerciseScreen({
   exerciseNumber, // ✅ Nom correct (pas exerciseIndex)
   totalExercises,
   onManageExercises, // ✅ Fonction pour gérer les exercices
+  onQuitSession,
   navigation
 }) {
   const [weight, setWeight] = useState('');
@@ -39,11 +40,11 @@ export default function ExerciseScreen({
 
       if (lastSets.length > 0) {
         setLastPerformance(lastSets);
-        
+
         // Calculer suggestion
         const lastSetForThisNumber = lastSets.find(s => s.set_number === setNumber) || lastSets[0];
         const allSetsSuccessful = lastSets.every(s => s.reps >= 8);
-        
+
         if (allSetsSuccessful && lastSetForThisNumber.reps >= 10) {
           // Suggérer +1 rep
           setSuggestion({
@@ -78,12 +79,12 @@ export default function ExerciseScreen({
 
   const applySuggestion = (suggestionType) => {
     if (!suggestion) return;
-    
+
     if (suggestionType === 'suggested' || suggestionType === 'repeat') {
       setWeight(suggestion.weight.toString());
       setReps(suggestion.reps.toString());
     }
-    
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -101,7 +102,7 @@ export default function ExerciseScreen({
   const handleValidate = () => {
     const w = parseFloat(weight) || 0;
     const r = parseInt(reps) || 0;
-    
+
     if (w > 0 && r > 0) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onSetComplete(w, r);
@@ -114,6 +115,12 @@ export default function ExerciseScreen({
   return (
     <ScrollView className="flex-1 bg-primary-dark">
       <View className="p-6">
+        <TouchableOpacity
+          className="absolute top-2 right-2 z-10 bg-danger/20 rounded-full p-2"
+          onPress={onQuitSession}
+        >
+          <Ionicons name="close" size={20} color="#ff4444" />
+        </TouchableOpacity>
         {/* En-tête */}
         <View className="mb-6">
           <Text className="text-gray-400 text-sm mb-1">
@@ -122,7 +129,7 @@ export default function ExerciseScreen({
           <Text className="text-white text-3xl font-bold mb-2">
             {exercise.name}
           </Text>
-          
+
           {/* Ligne avec Série et Bouton Gérer */}
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center">
@@ -130,7 +137,7 @@ export default function ExerciseScreen({
                 Série {setNumber}/{totalSets}
               </Text>
             </View>
-            
+
             {/* Bouton Gérer exercices */}
             <TouchableOpacity
               className="bg-primary-navy rounded-full p-2"
@@ -263,4 +270,3 @@ export default function ExerciseScreen({
     </ScrollView>
   );
 }
- 

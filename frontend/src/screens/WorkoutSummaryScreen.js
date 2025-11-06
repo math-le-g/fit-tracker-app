@@ -6,7 +6,8 @@ import * as Haptics from 'expo-haptics';
 import { checkAndUnlockBadges } from '../utils/badgeSystem';
 
 export default function WorkoutSummaryScreen({ route, navigation }) {
-  const { workoutId, warmupDuration, workoutDuration, totalSets, totalVolume, xpGained } = route.params;
+  // ✅ AJOUT du flag isPartial
+  const { workoutId, warmupDuration, workoutDuration, totalSets, totalVolume, xpGained, isPartial = false } = route.params;
   const [workoutDetails, setWorkoutDetails] = useState([]);
   const [records, setRecords] = useState([]);
   const [newBadges, setNewBadges] = useState([]);
@@ -15,7 +16,6 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     loadWorkoutDetails();
     checkForRecords();
-    updateUserXP();
     checkBadges();
   }, []);
 
@@ -43,20 +43,8 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
     // TODO: Vérifier les records
     // Pour l'instant, on simule
     setRecords([
-      { exercise: 'Développé Couché', oldValue: '82kg', newValue: '85kg', improvement: '+3kg' }
+      // { exercise: 'Développé Couché', oldValue: '82kg', newValue: '85kg', improvement: '+3kg' }
     ]);
-  };
-
-  const updateUserXP = async () => {
-    try {
-      await db.runAsync(
-        'UPDATE user SET xp = xp + ? WHERE id = 1',
-        [xpGained]
-      );
-      console.log(`✅ +${xpGained} XP ajoutés`);
-    } catch (error) {
-      console.error('Erreur mise à jour XP:', error);
-    }
   };
 
   const formatTime = (seconds) => {
@@ -93,16 +81,38 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
       <View className="p-6">
         {/* Célébration */}
         <View className="items-center mb-8">
-          <View className="bg-success/20 rounded-full p-6 mb-4">
-            <Ionicons name="trophy" size={80} color="#00ff88" />
+          <View className={`rounded-full p-6 mb-4 ${isPartial ? 'bg-accent-cyan/20' : 'bg-success/20'}`}>
+            <Ionicons 
+              name={isPartial ? "pause-circle" : "trophy"} 
+              size={80} 
+              color={isPartial ? "#00f5ff" : "#00ff88"} 
+            />
           </View>
+          {/* ✅ MODIFICATION DU TITRE selon isPartial */}
           <Text className="text-white text-3xl font-bold mb-2">
-            🎉 SÉANCE TERMINÉE !
+            {isPartial ? '⏸️ SÉANCE PARTIELLE' : '🎉 SÉANCE TERMINÉE !'}
           </Text>
           <Text className="text-gray-400 text-lg">
-            Excellent travail ! 💪
+            {isPartial ? 'Sauvegardée avec succès 💾' : 'Excellent travail ! 💪'}
           </Text>
         </View>
+
+        {/* ✅ NOUVEAU BADGE SI SÉANCE PARTIELLE */}
+        {isPartial && (
+          <View className="bg-accent-cyan/10 rounded-2xl p-4 mb-6 border border-accent-cyan">
+            <View className="flex-row items-start">
+              <Ionicons name="information-circle" size={20} color="#00f5ff" />
+              <View className="flex-1 ml-3">
+                <Text className="text-accent-cyan font-bold mb-1">
+                  💡 SÉANCE INTERROMPUE
+                </Text>
+                <Text className="text-gray-400 text-sm">
+                  Les séries effectuées ont été comptabilisées. Tu peux reprendre une séance complète quand tu veux !
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Stats principales */}
         <View className="bg-primary-navy rounded-2xl p-6 mb-6">
@@ -209,8 +219,9 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
           {Object.entries(groupByExercise()).map(([exerciseName, sets], index) => (
             <View
               key={index}
-              className={`py-3 ${index < Object.keys(groupByExercise()).length - 1 ? 'border-b border-primary-dark' : ''
-                }`}
+              className={`py-3 ${
+                index < Object.keys(groupByExercise()).length - 1 ? 'border-b border-primary-dark' : ''
+              }`}
             >
               <Text className="text-white font-semibold mb-2">
                 {exerciseName}
@@ -224,7 +235,7 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
           ))}
         </View>
 
-        {/* Bouton terminer - BOUTON PARTAGER SUPPRIMÉ */}
+        {/* Bouton terminer */}
         <TouchableOpacity
           className="bg-accent-cyan rounded-2xl p-5 mb-3"
           onPress={() => {

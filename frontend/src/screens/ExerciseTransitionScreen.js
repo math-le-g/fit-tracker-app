@@ -14,7 +14,8 @@ export default function ExerciseTransitionScreen({
   onStartNext,
   navigation,
   exercisesList,
-  onUpdateExercises
+  onUpdateExercises,
+  onQuitSession
 }) {
 
   const handleStartNext = () => {
@@ -28,7 +29,7 @@ export default function ExerciseTransitionScreen({
       currentExercise: nextExercise,
       onReplace: (newExercise) => {
         console.log('🔄 Remplacement de l\'exercice:', nextExercise.name, '→', newExercise.name);
-        
+
         // Créer une nouvelle liste avec l'exercice remplacé
         const newList = [...exercisesList];
         newList[exerciseNumber] = {
@@ -36,7 +37,7 @@ export default function ExerciseTransitionScreen({
           sets: nextExercise.sets,
           rest_time: nextExercise.rest_time
         };
-        
+
         // Mettre à jour la liste
         if (onUpdateExercises) {
           onUpdateExercises(newList);
@@ -67,6 +68,12 @@ export default function ExerciseTransitionScreen({
   return (
     <ScrollView className="flex-1 bg-primary-dark">
       <View className="p-6">
+        <TouchableOpacity
+          className="absolute top-2 right-2 z-10 bg-danger/20 rounded-full p-2"
+          onPress={onQuitSession}
+        >
+          <Ionicons name="close" size={20} color="#ff4444" />
+        </TouchableOpacity>
         {/* Exercice terminé */}
         <View className="items-center mb-6">
           <View className="bg-success/20 rounded-full p-6 mb-4">
@@ -130,7 +137,7 @@ export default function ExerciseTransitionScreen({
                   PROCHAIN EXERCICE
                 </Text>
               </View>
-              
+
               {/* Bouton pour remplacer l'exercice */}
               <TouchableOpacity
                 className="bg-primary-dark rounded-full p-2"

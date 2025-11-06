@@ -11,8 +11,7 @@ import CustomModal from '../components/CustomModal';
 
 export default function WorkoutSessionScreen({ route, navigation }) {
   const { exercises: initialExercises, routineName, skipWarmup } = route.params;
-  
-  // État pour les exercices
+
   const [exercises, setExercises] = useState(initialExercises);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [currentSetIndex, setCurrentSetIndex] = useState(0);
@@ -25,13 +24,11 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   const [totalVolume, setTotalVolume] = useState(0);
   const [totalSets, setTotalSets] = useState(0);
 
-  // États pour le modal
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState({});
 
   const currentExercise = exercises[currentExerciseIndex];
 
-  // ✅ CORRECTION: Initialisation si on passe l'échauffement
   useEffect(() => {
     if (skipWarmup && !workoutStartTime) {
       setWorkoutStartTime(Date.now());
@@ -40,44 +37,116 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     }
   }, [skipWarmup]);
 
-  // Fonction pour mettre à jour la liste des exercices
   const handleUpdateExercises = (newExercises) => {
     setExercises(newExercises);
   };
 
-  // Gérer le bouton retour Android
+  // 🆕 FONCTION POUR QUITTER LA SÉANCE
+  const handleQuitSession = () => {
+    if (totalSets === 0) {
+      setModalConfig({
+        title: '🚪 Quitter la séance ?',
+        message: 'Aucune série effectuée pour le moment.',
+        icon: 'exit-outline',
+        iconColor: '#ff6b35',
+        buttons: [
+          { text: 'Continuer', onPress: () => {} },
+          {
+            text: 'Annuler la séance',
+            style: 'destructive',
+            onPress: () => cancelWorkout()
+          }
+        ]
+      });
+    } else {
+      setModalConfig({
+        title: '🚪 Quitter la séance ?',
+        message: `Tu as fait ${totalSets} série(s) pour un volume de ${totalVolume} kg.\n\nQue veux-tu faire ?`,
+        icon: 'exit-outline',
+        iconColor: '#ffc107',
+        buttons: [
+          { text: 'Continuer', onPress: () => {} },
+          {
+            text: '💾 Sauvegarder et quitter',
+            style: 'primary',
+            onPress: () => savePartialWorkout()
+          },
+          {
+            text: '🗑️ Annuler la séance',
+            style: 'destructive',
+            onPress: () => cancelWorkout()
+          }
+        ]
+      });
+    }
+    setModalVisible(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
+
+  // 🆕 SAUVEGARDER PARTIELLEMENT
+  const savePartialWorkout = async () => {
+    try {
+      const workoutDuration = Math.floor((Date.now() - workoutStartTime) / 1000);
+      const xpGained = Math.floor((totalSets * 10) + (totalVolume / 100));
+
+      await db.runAsync(
+        'UPDATE workouts SET workout_duration = ?, total_volume = ?, total_sets = ?, xp_gained = ?, notes = ? WHERE id = ?',
+        [workoutDuration, totalVolume, totalSets, xpGained, 'Séance partielle (quittée)', workoutId]
+      );
+
+      await db.runAsync(
+        'UPDATE user SET xp = xp + ?, last_workout_date = ? WHERE id = 1',
+        [xpGained, new Date().toISOString()]
+      );
+
+      console.log('✅ Séance partielle sauvegardée');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      navigation.replace('WorkoutSummary', {
+        workoutId: workoutId,
+        warmupDuration: warmupDuration,
+        workoutDuration: workoutDuration,
+        totalSets: totalSets,
+        totalVolume: totalVolume,
+        xpGained: xpGained,
+        isPartial: true
+      });
+    } catch (error) {
+      console.error('❌ Erreur sauvegarde partielle:', error);
+    }
+  };
+
+  // 🆕 ANNULER COMPLÈTEMENT
+  const cancelWorkout = async () => {
+    try {
+      if (workoutId) {
+        await db.runAsync('DELETE FROM sets WHERE workout_id = ?', [workoutId]);
+        await db.runAsync('DELETE FROM workouts WHERE id = ?', [workoutId]);
+        console.log('🗑️ Séance annulée complètement');
+      }
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'TrainingHome' }],
+      });
+    } catch (error) {
+      console.error('❌ Erreur annulation séance:', error);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
-        handlePause();
+        handleQuitSession();
         return true;
       };
 
       const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      
       return () => subscription.remove();
-    }, [])
+    }, [totalSets, totalVolume, workoutId])
   );
-
-  const handlePause = () => {
-    setModalConfig({
-      title: '⏸️ Mettre en pause ?',
-      message: 'Ta séance sera sauvegardée',
-      icon: 'pause-circle',
-      iconColor: '#ffc107',
-      buttons: [
-        { text: 'Continuer', onPress: () => {} },
-        {
-          text: 'Mettre en pause',
-          style: 'destructive',
-          onPress: () => {
-            navigation.goBack();
-          }
-        }
-      ]
-    });
-    setModalVisible(true);
-  };
 
   const startWarmup = () => {
     setWorkoutStartTime(Date.now());
@@ -109,8 +178,6 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     try {
       if (!currentExercise) {
         console.error('❌ currentExercise est undefined!');
-        console.log('currentExerciseIndex:', currentExerciseIndex);
-        console.log('exercises:', exercises);
         return;
       }
 
@@ -142,13 +209,11 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   };
 
   const completeExercise = (exerciseSets) => {
-    const exerciseData = {
+    setAllCompletedExercises([...allCompletedExercises, {
       exercise: currentExercise,
       sets: exerciseSets
-    };
-    
-    setAllCompletedExercises([...allCompletedExercises, exerciseData]);
-    
+    }]);
+
     if (currentExerciseIndex < exercises.length - 1) {
       setCurrentPhase('transition');
     } else {
@@ -187,41 +252,33 @@ export default function WorkoutSessionScreen({ route, navigation }) {
         [newXp, newLevel, new Date().toISOString()]
       );
 
-      // ✅ CORRECTION: Naviguer vers WorkoutSummary au lieu de le rendre
       navigation.replace('WorkoutSummary', {
         workoutId: workoutId,
         warmupDuration: warmupDuration,
         workoutDuration: workoutDuration,
         totalSets: totalSets,
         totalVolume: totalVolume,
-        xpGained: xpGained
+        xpGained: xpGained,
+        isPartial: false
       });
     } catch (error) {
       console.error('Erreur fin workout:', error);
     }
   };
 
-  // Fonction pour gérer les exercices
   const handleManageExercises = () => {
     navigation.navigate('ManageWorkoutExercises', {
       exercises: exercises,
       currentIndex: currentExerciseIndex,
-      onReorder: (newExercises) => {
-        setExercises(newExercises);
-      }
+      onReorder: (newExercises) => setExercises(newExercises)
     });
   };
 
-  // ✅ VÉRIFICATION: Si pas d'exercice, afficher un message
   if (!currentExercise && currentPhase === 'exercise') {
     return (
       <View className="flex-1 bg-primary-dark items-center justify-center p-6">
-        <Text className="text-white text-xl text-center">
-          ⚠️ Problème avec l'exercice
-        </Text>
-        <Text className="text-gray-400 text-center mt-2">
-          L'exercice n'a pas pu être chargé
-        </Text>
+        <Text className="text-white text-xl text-center">⚠️ Problème avec l'exercice</Text>
+        <Text className="text-gray-400 text-center mt-2">L'exercice n'a pas pu être chargé</Text>
         <TouchableOpacity
           className="bg-primary-navy rounded-xl p-4 mt-4"
           onPress={() => navigation.goBack()}
@@ -232,11 +289,19 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     );
   }
 
-  // Rendu selon la phase
+  // 🆕 UTILISER UNE VARIABLE AU LIEU D'UN RETURN DIRECT
+  let content;
+
   switch (currentPhase) {
     case 'warmup':
-      return (
+      content = (
         <View className="flex-1 bg-primary-dark p-6">
+          <TouchableOpacity
+            className="absolute top-4 right-4 z-10 bg-danger/20 rounded-full p-3"
+            onPress={handleQuitSession}
+          >
+            <Ionicons name="close" size={24} color="#ff4444" />
+          </TouchableOpacity>
           <View className="flex-1 justify-center items-center">
             <View className="bg-primary-navy rounded-3xl p-8 w-full">
               <Text className="text-white text-3xl font-bold text-center mb-2">
@@ -267,19 +332,22 @@ export default function WorkoutSessionScreen({ route, navigation }) {
           </View>
         </View>
       );
+      break;
 
     case 'warmup-timer':
-      return (
+      content = (
         <RestTimerScreen
           duration={300}
           onComplete={completeWarmup}
           isWarmup={true}
           navigation={navigation}
+          onQuitSession={handleQuitSession}
         />
       );
+      break;
 
     case 'exercise':
-      return (
+      content = (
         <ExerciseScreen
           exercise={currentExercise}
           setNumber={currentSetIndex + 1}
@@ -290,11 +358,13 @@ export default function WorkoutSessionScreen({ route, navigation }) {
           totalExercises={exercises.length}
           onManageExercises={handleManageExercises}
           navigation={navigation}
+          onQuitSession={handleQuitSession}
         />
       );
+      break;
 
     case 'rest':
-      return (
+      content = (
         <RestTimerScreen
           duration={currentExercise.rest_time}
           onComplete={finishRest}
@@ -302,11 +372,13 @@ export default function WorkoutSessionScreen({ route, navigation }) {
           totalSets={currentExercise.sets}
           exerciseName={currentExercise.name}
           navigation={navigation}
+          onQuitSession={handleQuitSession}
         />
       );
+      break;
 
     case 'transition':
-      return (
+      content = (
         <ExerciseTransitionScreen
           completedExercise={currentExercise}
           completedSets={completedSets}
@@ -319,12 +391,26 @@ export default function WorkoutSessionScreen({ route, navigation }) {
           navigation={navigation}
           exercisesList={exercises}
           onUpdateExercises={handleUpdateExercises}
+          onQuitSession={handleQuitSession}
         />
       );
+      break;
 
     default:
-      return null;
+      content = null;
   }
+
+  // 🆕 RETOURNER LE CONTENU + LE MODAL (toujours présent)
+  return (
+    <>
+      {content}
+      <CustomModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        {...modalConfig}
+      />
+    </>
+  );
 }
 
 
