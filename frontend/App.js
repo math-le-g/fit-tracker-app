@@ -10,6 +10,7 @@ export default function App() {
   useEffect(() => {
     async function prepare() {
       try {
+        // Simplement initialiser la base de données
         await initDatabase();
         console.log('✅ App prête !');
       } catch (error) {
@@ -18,7 +19,6 @@ export default function App() {
         setIsReady(true);
       }
     }
-
     prepare();
   }, []);
 

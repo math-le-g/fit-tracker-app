@@ -4,18 +4,17 @@ import { useFocusEffect } from '@react-navigation/native';
 import { db } from '../database/database';
 import { Ionicons } from '@expo/vector-icons';
 import CustomModal from '../components/CustomModal';
+import { getSupersetInfo } from '../utils/supersetHelpers';
 
 export default function RoutineDetailScreen({ route, navigation }) {
   const { routineId } = route.params;
   const [routine, setRoutine] = useState(null);
   const [exercises, setExercises] = useState([]);
-  const [warmupDuration, setWarmupDuration] = useState(0); // 0 = pas d'échauffement
-  
-  // États pour le modal
+  const [warmupDuration, setWarmupDuration] = useState(0);
+
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState({});
 
-  // ✅ Actualisation automatique quand on revient sur l'écran
   useFocusEffect(
     useCallback(() => {
       loadRoutineDetails();
@@ -24,40 +23,61 @@ export default function RoutineDetailScreen({ route, navigation }) {
 
   const loadRoutineDetails = async () => {
     try {
-      // Charger la routine
       const routineData = await db.getFirstAsync(
         'SELECT * FROM routines WHERE id = ?',
         [routineId]
       );
 
-      // Charger les exercices de la routine
-      const exercisesList = await db.getAllAsync(`
+      // 🆕 CHARGER AVEC superset_data ET L'ID DE LA LIGNE
+      const rawExercises = await db.getAllAsync(`
         SELECT 
+          re.id as routine_exercise_id,
           e.id,
           e.name,
           e.muscle_group,
           e.equipment,
           re.sets,
-          re.rest_time
+          re.rest_time,
+          re.superset_data
         FROM routine_exercises re
-        JOIN exercises e ON re.exercise_id = e.id
+        LEFT JOIN exercises e ON re.exercise_id = e.id
         WHERE re.routine_id = ?
         ORDER BY re.order_index ASC
       `, [routineId]);
 
-      setRoutine(routineData);
-      setExercises(exercisesList);
+      // 🆕 PARSER LES SUPERSETS AVEC ID UNIQUE
+      const parsedExercises = rawExercises.map((ex, index) => {
+        if (ex.superset_data) {
+          // C'est un superset
+          try {
+            const supersetData = JSON.parse(ex.superset_data);
+            return {
+              ...supersetData,
+              // 🔥 UTILISER L'ID DE LA LIGNE POUR GARANTIR L'UNICITÉ
+              id: `superset_${ex.routine_exercise_id}_${index}`
+            };
+          } catch (error) {
+            console.error('❌ Erreur parsing superset:', error);
+            return null;
+          }
+        } else {
+          // Exercice normal
+          return ex;
+        }
+      }).filter(Boolean); // Retirer les nulls
 
-      // Charger la dernière séance pour suggestions
+      console.log('📋 EXERCICES CHARGÉS:', parsedExercises);
+
+      setRoutine(routineData);
+      setExercises(parsedExercises);
       loadLastWorkoutSuggestions();
     } catch (error) {
-      console.error('Erreur chargement détails routine:', error);
+      console.error('❌ Erreur chargement détails routine:', error);
     }
   };
 
   const loadLastWorkoutSuggestions = async () => {
-    // TODO: Charger dernière séance pour afficher suggestions
-    // On le fera dans les prochaines étapes
+    // TODO: Charger dernière séance pour suggestions
   };
 
   const getTotalSets = () => {
@@ -66,18 +86,16 @@ export default function RoutineDetailScreen({ route, navigation }) {
 
   const getEstimatedDuration = () => {
     const workoutTime = exercises.reduce((sum, ex) => {
-      // Temps exercice : 45s par série + temps repos entre séries
       return sum + (ex.sets * 45) + ((ex.sets - 1) * ex.rest_time);
     }, 0);
     return Math.round(workoutTime / 60) + warmupDuration;
   };
 
   const startWorkout = () => {
-    // ✅ CORRECTION ICI : Passer skipWarmup et routineName
-    navigation.navigate('WorkoutSession', { 
-      exercises,
+    navigation.navigate('WorkoutSession', {
+      exercises: exercises, // Directement les exercices chargés (avec supersets)
       routineName: routine.name,
-      skipWarmup: warmupDuration === 0  // true si pas d'échauffement sélectionné
+      skipWarmup: warmupDuration === 0
     });
   };
 
@@ -92,24 +110,18 @@ export default function RoutineDetailScreen({ route, navigation }) {
       icon: 'trash',
       iconColor: '#ff4444',
       buttons: [
-        { 
-          text: 'Annuler', 
-          onPress: () => {} 
+        {
+          text: 'Annuler',
+          onPress: () => { }
         },
         {
           text: 'Supprimer',
           style: 'destructive',
           onPress: async () => {
             try {
-              // Supprimer les exercices de la routine
               await db.runAsync('DELETE FROM routine_exercises WHERE routine_id = ?', [routineId]);
-              
-              // Supprimer la routine
               await db.runAsync('DELETE FROM routines WHERE id = ?', [routineId]);
-              
               console.log('✅ Routine supprimée');
-              
-              // Retour à la liste des routines
               navigation.goBack();
             } catch (error) {
               console.error('❌ Erreur suppression routine:', error);
@@ -119,7 +131,7 @@ export default function RoutineDetailScreen({ route, navigation }) {
                 icon: 'alert-circle',
                 iconColor: '#ff4444',
                 buttons: [
-                  { text: 'OK', style: 'primary', onPress: () => {} }
+                  { text: 'OK', style: 'primary', onPress: () => { } }
                 ]
               });
               setModalVisible(true);
@@ -178,53 +190,45 @@ export default function RoutineDetailScreen({ route, navigation }) {
 
           <View className="flex-row justify-between">
             <TouchableOpacity
-              className={`flex-1 rounded-xl p-3 mr-2 ${
-                warmupDuration === 5 ? 'bg-danger' : 'bg-primary-dark'
-              }`}
+              className={`flex-1 rounded-xl p-3 mr-2 ${warmupDuration === 5 ? 'bg-danger' : 'bg-primary-dark'
+                }`}
               onPress={() => setWarmupDuration(5)}
             >
-              <Text className={`text-center font-bold ${
-                warmupDuration === 5 ? 'text-white' : 'text-gray-400'
-              }`}>
+              <Text className={`text-center font-bold ${warmupDuration === 5 ? 'text-white' : 'text-gray-400'
+                }`}>
                 5 min
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              className={`flex-1 rounded-xl p-3 mx-1 ${
-                warmupDuration === 10 ? 'bg-danger' : 'bg-primary-dark'
-              }`}
+              className={`flex-1 rounded-xl p-3 mx-1 ${warmupDuration === 10 ? 'bg-danger' : 'bg-primary-dark'
+                }`}
               onPress={() => setWarmupDuration(10)}
             >
-              <Text className={`text-center font-bold ${
-                warmupDuration === 10 ? 'text-white' : 'text-gray-400'
-              }`}>
+              <Text className={`text-center font-bold ${warmupDuration === 10 ? 'text-white' : 'text-gray-400'
+                }`}>
                 10 min
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              className={`flex-1 rounded-xl p-3 mx-1 ${
-                warmupDuration === 15 ? 'bg-danger' : 'bg-primary-dark'
-              }`}
+              className={`flex-1 rounded-xl p-3 mx-1 ${warmupDuration === 15 ? 'bg-danger' : 'bg-primary-dark'
+                }`}
               onPress={() => setWarmupDuration(15)}
             >
-              <Text className={`text-center font-bold ${
-                warmupDuration === 15 ? 'text-white' : 'text-gray-400'
-              }`}>
+              <Text className={`text-center font-bold ${warmupDuration === 15 ? 'text-white' : 'text-gray-400'
+                }`}>
                 15 min
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              className={`flex-1 rounded-xl p-3 ml-2 ${
-                warmupDuration === 0 ? 'bg-gray-700' : 'bg-primary-dark'
-              }`}
+              className={`flex-1 rounded-xl p-3 ml-2 ${warmupDuration === 0 ? 'bg-gray-700' : 'bg-primary-dark'
+                }`}
               onPress={() => setWarmupDuration(0)}
             >
-              <Text className={`text-center font-bold ${
-                warmupDuration === 0 ? 'text-white' : 'text-gray-400'
-              }`}>
+              <Text className={`text-center font-bold ${warmupDuration === 0 ? 'text-white' : 'text-gray-400'
+                }`}>
                 Passer
               </Text>
             </TouchableOpacity>
@@ -237,30 +241,94 @@ export default function RoutineDetailScreen({ route, navigation }) {
             📋 Exercices de la séance
           </Text>
 
-          {exercises.map((exercise, index) => (
-            <View
-              key={exercise.id}
-              className={`flex-row items-center py-3 ${
-                index < exercises.length - 1 ? 'border-b border-primary-dark' : ''
-              }`}
-            >
-              <View className="bg-accent-cyan rounded-full w-8 h-8 items-center justify-center mr-3">
-                <Text className="text-primary-dark font-bold">
-                  {index + 1}
-                </Text>
-              </View>
+          {exercises.map((item, index) => {
+            // 🆕 DÉTECTION SUPERSET
+            const isSuperset = item.type === 'superset';
 
-              <View className="flex-1">
-                <Text className="text-white font-semibold">
-                  {exercise.name}
+            if (isSuperset) {
+              // 🔥 AFFICHAGE SUPERSET AVEC NOM ADAPTATIF
+              const supersetInfo = getSupersetInfo(item.exercises.length);
+
+              return (
+                <View
+                  key={item.id || index}
+                  className={`py-3 ${index < exercises.length - 1 ? 'border-b border-primary-dark' : ''
+                    }`}
+                >
+                  <View className="flex-row items-center mb-2">
+                    <View className={`${supersetInfo.bgColor} rounded-full w-8 h-8 items-center justify-center mr-3`}>
+                      <Ionicons name={supersetInfo.icon} size={18} color="#0a0e27" />
+                    </View>
+
+                    <View className="flex-1">
+                      <Text className={`${supersetInfo.textColor} font-bold`}>
+                        {supersetInfo.emoji} {supersetInfo.name} {index + 1}
+                      </Text>
+                      <Text className="text-gray-400 text-xs">
+                        {item.exercises.length} exercices • {item.rounds} tours • {item.rest_time}s repos
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Exercices du superset */}
+                  <View className="ml-11 mt-2 bg-primary-dark rounded-xl p-3">
+                    {item.exercises.map((ex, exIndex) => (
+                      <View key={ex.id} className="flex-row items-center mb-1">
+                        <View className={`${supersetInfo.bgColor} rounded-full w-5 h-5 items-center justify-center mr-2`}>
+                          <Text className="text-primary-dark text-xs font-bold">
+                            {exIndex + 1}
+                          </Text>
+                        </View>
+                        <Text className="text-white text-sm">{ex.name}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              );
+            } else {
+              // ✅ AFFICHAGE EXERCICE NORMAL
+              return (
+                <View
+                  key={item.id}
+                  className={`flex-row items-center py-3 ${index < exercises.length - 1 ? 'border-b border-primary-dark' : ''
+                    }`}
+                >
+                  <View className="bg-accent-cyan rounded-full w-8 h-8 items-center justify-center mr-3">
+                    <Text className="text-primary-dark font-bold">
+                      {index + 1}
+                    </Text>
+                  </View>
+
+                  <View className="flex-1">
+                    <Text className="text-white font-semibold">
+                      {item.name}
+                    </Text>
+                    <Text className="text-gray-400 text-sm">
+                      {item.sets} séries • {item.rest_time}s repos
+                    </Text>
+                  </View>
+                </View>
+              );
+            }
+          })}
+        </View>
+
+        {/* 🧪 BADGE DE TEST */}
+        {exercises.length >= 4 && (
+          <View className="bg-accent-cyan/10 rounded-2xl p-4 mb-6 border border-accent-cyan">
+            <View className="flex-row items-start">
+              <Ionicons name="flask" size={20} color="#00f5ff" />
+              <View className="flex-1 ml-3">
+                <Text className="text-accent-cyan text-sm font-bold mb-1">
+                  🧪 MODE TEST SUPERSET
                 </Text>
-                <Text className="text-gray-400 text-sm">
-                  {exercise.sets} séries • {exercise.rest_time}s repos
+                <Text className="text-gray-400 text-xs">
+                  Les exercices 3 et 4 seront automatiquement convertis en superset de 3 tours pour tester la fonctionnalité
                 </Text>
               </View>
             </View>
-          ))}
-        </View>
+          </View>
+        )}
 
         {/* Suggestions dernière séance */}
         <View className="bg-success/10 rounded-2xl p-4 mb-6 border border-success/20">
@@ -323,7 +391,6 @@ export default function RoutineDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Modal custom */}
       <CustomModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}

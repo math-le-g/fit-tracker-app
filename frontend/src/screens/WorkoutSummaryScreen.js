@@ -4,6 +4,7 @@ import { db } from '../database/database';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { checkAndUnlockBadges } from '../utils/badgeSystem';
+import { getSupersetInfo, isSuperset as isSupersetHelper } from '../utils/supersetHelpers';
 
 export default function WorkoutSummaryScreen({ route, navigation }) {
   // ✅ AJOUT du flag isPartial
@@ -21,12 +22,15 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
 
   const loadWorkoutDetails = async () => {
     try {
+      // 🆕 CHARGER AVEC superset_id
       const details = await db.getAllAsync(`
         SELECT 
+          e.id as exercise_id,
           e.name,
           s.set_number,
           s.weight,
-          s.reps
+          s.reps,
+          s.superset_id
         FROM sets s
         JOIN exercises e ON s.exercise_id = e.id
         WHERE s.workout_id = ?
@@ -59,13 +63,31 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
 
   const groupByExercise = () => {
     const grouped = {};
+    const supersets = {};
+    
     workoutDetails.forEach(detail => {
-      if (!grouped[detail.name]) {
-        grouped[detail.name] = [];
+      if (detail.superset_id) {
+        // 🔥 C'EST UN SUPERSET
+        if (!supersets[detail.superset_id]) {
+          supersets[detail.superset_id] = {
+            isSuperset: true,
+            exercises: {}
+          };
+        }
+        if (!supersets[detail.superset_id].exercises[detail.name]) {
+          supersets[detail.superset_id].exercises[detail.name] = [];
+        }
+        supersets[detail.superset_id].exercises[detail.name].push(detail);
+      } else {
+        // ✅ EXERCICE NORMAL
+        if (!grouped[detail.name]) {
+          grouped[detail.name] = [];
+        }
+        grouped[detail.name].push(detail);
       }
-      grouped[detail.name].push(detail);
     });
-    return grouped;
+    
+    return { normal: grouped, supersets: supersets };
   };
 
   const checkBadges = async () => {
@@ -210,29 +232,85 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Détails exercices */}
+       {/* Détails exercices */}
         <View className="bg-primary-navy rounded-2xl p-6 mb-6">
           <Text className="text-white text-xl font-bold mb-4">
             📋 Détails de la séance
           </Text>
 
-          {Object.entries(groupByExercise()).map(([exerciseName, sets], index) => (
-            <View
-              key={index}
-              className={`py-3 ${
-                index < Object.keys(groupByExercise()).length - 1 ? 'border-b border-primary-dark' : ''
-              }`}
-            >
-              <Text className="text-white font-semibold mb-2">
-                {exerciseName}
-              </Text>
-              {sets.map((set, setIndex) => (
-                <Text key={setIndex} className="text-gray-400 text-sm">
-                  Série {set.set_number}: {set.weight}kg × {set.reps} reps
-                </Text>
-              ))}
-            </View>
-          ))}
+          {(() => {
+            const { normal, supersets } = groupByExercise();
+            const allItems = [];
+            
+            // Ajouter les exercices normaux
+            Object.entries(normal).forEach(([exerciseName, sets]) => {
+              allItems.push({ type: 'normal', name: exerciseName, sets });
+            });
+            
+            // Ajouter les supersets
+            Object.entries(supersets).forEach(([supersetId, supersetData]) => {
+              allItems.push({ type: 'superset', id: supersetId, data: supersetData });
+            });
+            
+            return allItems.map((item, index) => {
+              if (item.type === 'superset') {
+                // 🔥 AFFICHAGE SUPERSET
+                const exerciseCount = Object.keys(item.data.exercises).length;
+                const supersetInfo = getSupersetInfo(exerciseCount);
+                
+                return (
+                  <View
+                    key={item.id}
+                    className={`py-3 mb-3 ${
+                      index < allItems.length - 1 ? 'border-b border-primary-dark' : ''
+                    }`}
+                  >
+                    <View className={`rounded-xl p-3 mb-2 ${supersetInfo.bgColor}/10 border ${supersetInfo.borderColor}`}>
+                      <View className="flex-row items-center mb-2">
+                        <Ionicons name={supersetInfo.icon} size={20} color={supersetInfo.color} />
+                        <Text className={`${supersetInfo.textColor} font-bold text-lg ml-2`}>
+                          {supersetInfo.emoji} {supersetInfo.name}
+                        </Text>
+                      </View>
+                      
+                      {/* Exercices du superset */}
+                      {Object.entries(item.data.exercises).map(([exerciseName, sets], exIndex) => (
+                        <View key={exIndex} className="ml-3 mt-2">
+                          <Text className="text-white font-semibold mb-1">
+                            {exIndex + 1}. {exerciseName}
+                          </Text>
+                          {sets.map((set, setIndex) => (
+                            <Text key={setIndex} className="text-gray-400 text-sm ml-2">
+                              Tour {set.set_number}: {set.weight}kg × {set.reps} reps
+                            </Text>
+                          ))}
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                );
+              } else {
+                // ✅ AFFICHAGE EXERCICE NORMAL
+                return (
+                  <View
+                    key={index}
+                    className={`py-3 ${
+                      index < allItems.length - 1 ? 'border-b border-primary-dark' : ''
+                    }`}
+                  >
+                    <Text className="text-white font-semibold mb-2">
+                      {item.name}
+                    </Text>
+                    {item.sets.map((set, setIndex) => (
+                      <Text key={setIndex} className="text-gray-400 text-sm">
+                        Série {set.set_number}: {set.weight}kg × {set.reps} reps
+                      </Text>
+                    ))}
+                  </View>
+                );
+              }
+            });
+          })()}
         </View>
 
         {/* Bouton terminer */}

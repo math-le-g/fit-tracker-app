@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { getSupersetInfo } from '../utils/supersetHelpers';
 
 export default function ExerciseTransitionScreen({
   completedExercise,
@@ -15,8 +16,14 @@ export default function ExerciseTransitionScreen({
   navigation,
   exercisesList,
   onUpdateExercises,
-  onQuitSession
+  onQuitSession,
+  isSuperset = false // 🆕 PROP POUR DÉTECTER LES SUPERSETS
 }) {
+
+  // 🆕 OBTENIR LES INFOS DU SUPERSET
+  const supersetInfo = isSuperset && completedExercise?.exercises 
+    ? getSupersetInfo(completedExercise.exercises.length) 
+    : null;
 
   const handleStartNext = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -24,13 +31,11 @@ export default function ExerciseTransitionScreen({
   };
 
   const handleReplaceExercise = () => {
-    // ✅ CORRECTION: Utiliser push au lieu de navigate pour éviter de créer un nouveau workout
     navigation.push('SelectReplacementExercise', {
       currentExercise: nextExercise,
       onReplace: (newExercise) => {
         console.log('🔄 Remplacement de l\'exercice:', nextExercise.name, '→', newExercise.name);
 
-        // Créer une nouvelle liste avec l'exercice remplacé
         const newList = [...exercisesList];
         newList[exerciseNumber] = {
           ...newExercise,
@@ -38,7 +43,6 @@ export default function ExerciseTransitionScreen({
           rest_time: nextExercise.rest_time
         };
 
-        // Mettre à jour la liste
         if (onUpdateExercises) {
           onUpdateExercises(newList);
           console.log('✅ Liste d\'exercices mise à jour');
@@ -54,6 +58,23 @@ export default function ExerciseTransitionScreen({
     const mins = Math.floor(totalSeconds / 60);
     const secs = totalSeconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // 🆕 FONCTION POUR CALCULER LE VOLUME TOTAL
+  const getTotalVolume = () => {
+    if (isSuperset) {
+      // Pour les supersets, completedSets est un objet
+      let total = 0;
+      Object.values(completedSets || {}).forEach(exerciseSets => {
+        exerciseSets.forEach(set => {
+          total += set.weight * set.reps;
+        });
+      });
+      return total;
+    } else {
+      // Pour les exercices normaux, completedSets est un tableau
+      return (completedSets || []).reduce((sum, set) => sum + (set.weight * set.reps), 0);
+    }
   };
 
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -74,39 +95,75 @@ export default function ExerciseTransitionScreen({
         >
           <Ionicons name="close" size={20} color="#ff4444" />
         </TouchableOpacity>
+
         {/* Exercice terminé */}
         <View className="items-center mb-6">
-          <View className="bg-success/20 rounded-full p-6 mb-4">
-            <Ionicons name="checkmark-circle" size={64} color="#00ff88" />
+          <View className={`rounded-full p-6 mb-4 ${isSuperset && supersetInfo ? `${supersetInfo.bgColor}/20` : 'bg-success/20'}`}>
+            <Ionicons 
+              name="checkmark-circle" 
+              size={64} 
+              color={isSuperset && supersetInfo ? supersetInfo.color : "#00ff88"} 
+            />
           </View>
           <Text className="text-white text-2xl font-bold mb-2">
-            ✅ EXERCICE TERMINÉ !
+            {isSuperset && supersetInfo 
+              ? `${supersetInfo.emoji} ${supersetInfo.name} TERMINÉ !` 
+              : '✅ EXERCICE TERMINÉ !'
+            }
           </Text>
           <Text className="text-gray-400 text-lg">
-            {completedExercise.name}
+            {completedExercise.name || `${supersetInfo?.name || 'Superset'} ${exerciseNumber}`}
           </Text>
         </View>
 
         {/* Récap exercice */}
-        <View className="bg-primary-navy rounded-2xl p-6 mb-4">
+        <View className={`rounded-2xl p-6 mb-4 ${isSuperset && supersetInfo ? `${supersetInfo.bgColor}/10 border ${supersetInfo.borderColor}` : 'bg-primary-navy'}`}>
           <Text className="text-white text-lg font-bold mb-3">
             📊 Performance
           </Text>
 
-          {completedSets.map((set, index) => (
-            <View key={index} className="flex-row justify-between mb-2">
-              <Text className="text-gray-400">Série {index + 1}</Text>
-              <Text className="text-white font-semibold">
-                {set.weight}kg × {set.reps} reps
-              </Text>
-            </View>
-          ))}
+          {/* 🆕 AFFICHAGE DIFFÉRENT SELON LE TYPE */}
+          {isSuperset ? (
+            // SUPERSET/TRISET/GIANT SET : Afficher chaque exercice avec ses séries
+            <>
+              {completedExercise.exercises?.map((exercise, exIndex) => {
+                const exerciseSets = completedSets[exercise.id] || [];
+                return (
+                  <View key={exercise.id} className="mb-4">
+                    <Text className={`${supersetInfo?.textColor || 'text-accent-cyan'} font-bold mb-2`}>
+                      {exIndex + 1}. {exercise.name}
+                    </Text>
+                    {exerciseSets.map((set, setIndex) => (
+                      <View key={setIndex} className="flex-row justify-between mb-1 ml-4">
+                        <Text className="text-gray-400">Tour {setIndex + 1}</Text>
+                        <Text className="text-white font-semibold">
+                          {set.weight}kg × {set.reps} reps
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })}
+            </>
+          ) : (
+            // EXERCICE NORMAL
+            <>
+              {(completedSets || []).map((set, index) => (
+                <View key={index} className="flex-row justify-between mb-2">
+                  <Text className="text-gray-400">Série {index + 1}</Text>
+                  <Text className="text-white font-semibold">
+                    {set.weight}kg × {set.reps} reps
+                  </Text>
+                </View>
+              ))}
+            </>
+          )}
 
           <View className="mt-3 pt-3 border-t border-primary-dark">
             <View className="flex-row justify-between">
               <Text className="text-gray-400">Volume total</Text>
-              <Text className="text-success font-bold">
-                {completedSets.reduce((sum, set) => sum + (set.weight * set.reps), 0)} kg
+              <Text className={`font-bold ${isSuperset && supersetInfo ? supersetInfo.textColor : 'text-success'}`}>
+                {getTotalVolume()} kg
               </Text>
             </View>
           </View>
@@ -153,10 +210,16 @@ export default function ExerciseTransitionScreen({
                   Exercice {exerciseNumber + 1}/{totalExercises}
                 </Text>
                 <Text className="text-white text-xl font-bold">
-                  {nextExercise.name}
+                  {nextExercise.type === 'superset' 
+                    ? `${getSupersetInfo(nextExercise.exercises?.length || 2).emoji} ${getSupersetInfo(nextExercise.exercises?.length || 2).name}`
+                    : nextExercise.name || nextExercise.exercises?.[0]?.name || 'Exercice suivant'
+                  }
                 </Text>
                 <Text className="text-gray-400 text-sm mt-1">
-                  {nextExercise.sets} séries • {nextExercise.rest_time}s repos
+                  {nextExercise.type === 'superset' 
+                    ? `${nextExercise.exercises?.length} exercices • ${nextExercise.rounds} tours`
+                    : `${nextExercise.sets} séries • ${nextExercise.rest_time}s repos`
+                  }
                 </Text>
               </View>
               <View className="bg-accent-cyan rounded-full w-12 h-12 items-center justify-center">

@@ -4,6 +4,7 @@ import { db } from '../database/database';
 import { Ionicons } from '@expo/vector-icons';
 import CustomModal from '../components/CustomModal';
 import * as Haptics from 'expo-haptics';
+import { getSupersetInfo, isSuperset as isSupersetHelper } from '../utils/supersetHelpers';
 
 export default function ManageWorkoutExercisesScreen({ route, navigation }) {
   const { exercises, currentIndex, onReorder } = route.params;
@@ -12,14 +13,14 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
   const [showAddExercise, setShowAddExercise] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [muscleFilter, setMuscleFilter] = useState('all');
-  
+
   // Config pour nouvel exercice
   const [showExerciseConfig, setShowExerciseConfig] = useState(false);
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState(null);
   const [newExerciseSets, setNewExerciseSets] = useState(3);
   const [newExerciseRestMinutes, setNewExerciseRestMinutes] = useState(1);
   const [newExerciseRestSeconds, setNewExerciseRestSeconds] = useState(30);
-  
+
   // États pour le modal
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState({});
@@ -46,7 +47,7 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
         message: 'Tu ne peux pas déplacer un exercice déjà fait !',
         icon: 'information-circle',
         iconColor: '#00f5ff',
-        buttons: [{ text: 'OK', style: 'primary', onPress: () => {} }]
+        buttons: [{ text: 'OK', style: 'primary', onPress: () => { } }]
       });
       setModalVisible(true);
       return;
@@ -61,7 +62,7 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
         message: 'Tu ne peux pas déplacer avant l\'exercice en cours !',
         icon: 'information-circle',
         iconColor: '#00f5ff',
-        buttons: [{ text: 'OK', style: 'primary', onPress: () => {} }]
+        buttons: [{ text: 'OK', style: 'primary', onPress: () => { } }]
       });
       setModalVisible(true);
       return;
@@ -81,7 +82,7 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
         message: 'Cet exercice est déjà fait !',
         icon: 'information-circle',
         iconColor: '#00f5ff',
-        buttons: [{ text: 'OK', style: 'primary', onPress: () => {} }]
+        buttons: [{ text: 'OK', style: 'primary', onPress: () => { } }]
       });
       setModalVisible(true);
       return;
@@ -93,7 +94,7 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
       icon: 'play-forward',
       iconColor: '#d4af37',
       buttons: [
-        { text: 'Annuler', onPress: () => {} },
+        { text: 'Annuler', onPress: () => { } },
         {
           text: 'Passer',
           style: 'primary',
@@ -117,7 +118,22 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
         message: 'Cet exercice est déjà fait !',
         icon: 'information-circle',
         iconColor: '#00f5ff',
-        buttons: [{ text: 'OK', style: 'primary', onPress: () => {} }]
+        buttons: [{ text: 'OK', style: 'primary', onPress: () => { } }]
+      });
+      setModalVisible(true);
+      return;
+    }
+
+    const currentExercise = exerciseList[index];
+
+    // 🆕 VÉRIFIER SI C'EST UN SUPERSET
+    if (isSupersetHelper(currentExercise)) {
+      setModalConfig({
+        title: '⚠️ Remplacer un superset ?',
+        message: 'Tu ne peux pas remplacer un superset complet. Tu peux le retirer et ajouter un exercice normal à la place.',
+        icon: 'alert-circle',
+        iconColor: '#ff6b35',
+        buttons: [{ text: 'OK', style: 'primary', onPress: () => { } }]
       });
       setModalVisible(true);
       return;
@@ -145,7 +161,7 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
         message: 'Cet exercice est déjà fait !',
         icon: 'information-circle',
         iconColor: '#00f5ff',
-        buttons: [{ text: 'OK', style: 'primary', onPress: () => {} }]
+        buttons: [{ text: 'OK', style: 'primary', onPress: () => { } }]
       });
       setModalVisible(true);
       return;
@@ -157,7 +173,7 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
       icon: 'trash',
       iconColor: '#ff4444',
       buttons: [
-        { text: 'Annuler', onPress: () => {} },
+        { text: 'Annuler', onPress: () => { } },
         {
           text: 'Retirer',
           style: 'destructive',
@@ -190,7 +206,7 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
       sets: newExerciseSets,
       rest_time: totalRestSeconds
     };
-    
+
     setExerciseList([...exerciseList, newExercise]);
     setShowExerciseConfig(false);
     setSelectedExerciseToAdd(null);
@@ -204,7 +220,7 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
         message: 'Tu ne peux pas continuer sans exercices !',
         icon: 'alert-circle',
         iconColor: '#ff4444',
-        buttons: [{ text: 'OK', style: 'primary', onPress: () => {} }]
+        buttons: [{ text: 'OK', style: 'primary', onPress: () => { } }]
       });
       setModalVisible(true);
       return;
@@ -238,16 +254,23 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
             const isCurrent = index === currentIndex;
             const canModify = index > currentIndex;
 
+            // 🆕 DÉTECTION SUPERSET
+            const isSuperset = isSupersetHelper(ex);
+            const supersetInfo = isSuperset ? getSupersetInfo(ex.exercises.length) : null;
+
             return (
               <View
                 key={`${ex.id}-${index}`}
-                className={`rounded-2xl p-4 mb-3 ${
-                  isDone
+                className={`rounded-2xl p-4 mb-3 ${isDone
                     ? 'bg-success/10 border border-success/30'
                     : isCurrent
-                    ? 'bg-accent-cyan/10 border border-accent-cyan'
-                    : 'bg-primary-navy'
-                }`}
+                      ? isSuperset
+                        ? `${supersetInfo.bgColor}/10 border ${supersetInfo.borderColor}`
+                        : 'bg-accent-cyan/10 border border-accent-cyan'
+                      : isSuperset
+                        ? `${supersetInfo.bgColor}/5 border ${supersetInfo.borderColor}/30`
+                        : 'bg-primary-navy'
+                  }`}
               >
                 {/* En-tête */}
                 <View className="flex-row items-center justify-between mb-2">
@@ -256,16 +279,47 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
                       {isDone && (
                         <Ionicons name="checkmark-circle" size={20} color="#00ff88" style={{ marginRight: 8 }} />
                       )}
-                      {isCurrent && (
+                      {isCurrent && !isSuperset && (
                         <Ionicons name="play-circle" size={20} color="#00f5ff" style={{ marginRight: 8 }} />
                       )}
-                      <Text className={`font-bold ${isDone ? 'text-success' : isCurrent ? 'text-accent-cyan' : 'text-white'}`}>
-                        {index + 1}. {ex.name}
-                      </Text>
+                      {isCurrent && isSuperset && (
+                        <Ionicons name={supersetInfo.icon} size={20} color={supersetInfo.color} style={{ marginRight: 8 }} />
+                      )}
+
+                      {/* 🆕 AFFICHAGE SELON LE TYPE */}
+                      {isSuperset ? (
+                        <Text className={`font-bold ${isDone ? 'text-success' : isCurrent ? supersetInfo.textColor : 'text-white'
+                          }`}>
+                          {index + 1}. {supersetInfo.emoji} {supersetInfo.name}
+                        </Text>
+                      ) : (
+                        <Text className={`font-bold ${isDone ? 'text-success' : isCurrent ? 'text-accent-cyan' : 'text-white'
+                          }`}>
+                          {index + 1}. {ex.name}
+                        </Text>
+                      )}
                     </View>
-                    <Text className="text-gray-400 text-sm">
-                      {ex.sets} séries • {Math.floor(ex.rest_time / 60)}:{(ex.rest_time % 60).toString().padStart(2, '0')} repos
-                    </Text>
+
+                    {/* 🆕 INFO SELON LE TYPE */}
+                    {isSuperset ? (
+                      <>
+                        <Text className="text-gray-400 text-sm">
+                          {ex.exercises.length} exercices • {ex.rounds} tours • {Math.floor(ex.rest_time / 60)}:{(ex.rest_time % 60).toString().padStart(2, '0')} repos
+                        </Text>
+                        {/* Liste des exercices du superset */}
+                        <View className="mt-2 ml-4">
+                          {ex.exercises.map((exercise, exIndex) => (
+                            <Text key={exercise.id} className="text-gray-400 text-xs">
+                              • {exercise.name}
+                            </Text>
+                          ))}
+                        </View>
+                      </>
+                    ) : (
+                      <Text className="text-gray-400 text-sm">
+                        {ex.sets} séries • {Math.floor(ex.rest_time / 60)}:{(ex.rest_time % 60).toString().padStart(2, '0')} repos
+                      </Text>
+                    )}
                   </View>
 
                   {canModify && (
@@ -291,14 +345,23 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
                 {/* Actions */}
                 {canModify && (
                   <View className="flex-row gap-2 mt-2">
-                    <TouchableOpacity
-                      className="flex-1 bg-accent-cyan/20 rounded-lg py-2"
-                      onPress={() => replaceExercise(index)}
-                    >
-                      <Text className="text-accent-cyan text-center text-sm font-semibold">
-                        🔄 Remplacer
-                      </Text>
-                    </TouchableOpacity>
+                    {/* 🆕 DÉSACTIVER "REMPLACER" POUR LES SUPERSETS */}
+                    {isSuperset ? (
+                      <View className="flex-1 bg-gray-700/30 rounded-lg py-2">
+                        <Text className="text-gray-600 text-center text-sm font-semibold">
+                          🔒 Remplacer
+                        </Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        className="flex-1 bg-accent-cyan/20 rounded-lg py-2"
+                        onPress={() => replaceExercise(index)}
+                      >
+                        <Text className="text-accent-cyan text-center text-sm font-semibold">
+                          🔄 Remplacer
+                        </Text>
+                      </TouchableOpacity>
+                    )}
 
                     <TouchableOpacity
                       className="flex-1 bg-primary-dark rounded-lg py-2"
@@ -317,6 +380,15 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
                         🗑️ Retirer
                       </Text>
                     </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* 🆕 MESSAGE INFO POUR SUPERSETS */}
+                {isSuperset && canModify && (
+                  <View className={`mt-2 p-2 rounded-lg ${supersetInfo.bgColor}/10`}>
+                    <Text className="text-gray-400 text-xs text-center">
+                      💡 Le {supersetInfo.name.toLowerCase()} reste intact, tu peux le déplacer ou le retirer
+                    </Text>
                   </View>
                 )}
               </View>
@@ -395,14 +467,12 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
             {muscleGroups.map(muscle => (
               <TouchableOpacity
                 key={muscle}
-                className={`mr-2 px-4 py-2 rounded-xl ${
-                  muscleFilter === muscle ? 'bg-accent-cyan' : 'bg-primary-dark'
-                }`}
+                className={`mr-2 px-4 py-2 rounded-xl ${muscleFilter === muscle ? 'bg-accent-cyan' : 'bg-primary-dark'
+                  }`}
                 onPress={() => setMuscleFilter(muscle)}
               >
-                <Text className={`font-semibold ${
-                  muscleFilter === muscle ? 'text-primary-dark' : 'text-gray-400'
-                }`}>
+                <Text className={`font-semibold ${muscleFilter === muscle ? 'text-primary-dark' : 'text-gray-400'
+                  }`}>
                   {muscle === 'all' ? 'Tous' : muscle}
                 </Text>
               </TouchableOpacity>

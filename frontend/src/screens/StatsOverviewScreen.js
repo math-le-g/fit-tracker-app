@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { db } from '../database/database';
 import { Ionicons } from '@expo/vector-icons';
+import { getSupersetInfo } from '../utils/supersetHelpers'; // 🆕 IMPORT
 
 export default function StatsOverviewScreen({ navigation }) {
   const [period, setPeriod] = useState('month');
@@ -13,6 +14,7 @@ export default function StatsOverviewScreen({ navigation }) {
   const [workoutDates, setWorkoutDates] = useState([]);
   const [runDates, setRunDates] = useState([]);
   const [progressData, setProgressData] = useState([]);
+  const [supersetStats, setSupersetStats] = useState(null); // 🆕 ÉTAT SUPERSETS
 
   // ✅ Actualisation automatique
   useFocusEffect(
@@ -80,6 +82,56 @@ export default function StatsOverviewScreen({ navigation }) {
         distance: totalDistance,
         duration: totalRunDuration,
         avgPace
+      });
+
+      // 🆕 STATS DES SUPERSETS
+      const supersetSets = await db.getAllAsync(`
+        SELECT s.*, e.name
+        FROM sets s
+        JOIN exercises e ON s.exercise_id = e.id
+        JOIN workouts w ON s.workout_id = w.id
+        WHERE w.date > ? AND s.superset_id IS NOT NULL
+      `, [startDate.toISOString()]);
+
+      // Grouper par superset_id
+      const supersetGroups = {};
+      supersetSets.forEach(set => {
+        if (!supersetGroups[set.superset_id]) {
+          supersetGroups[set.superset_id] = {
+            exercises: new Set(),
+            volume: 0,
+            sets: 0
+          };
+        }
+        supersetGroups[set.superset_id].exercises.add(set.name);
+        supersetGroups[set.superset_id].volume += (set.weight * set.reps);
+        supersetGroups[set.superset_id].sets++;
+      });
+
+      // Compter par type (superset/triset/giant set)
+      let supersetCount = 0;
+      let trisetCount = 0;
+      let giantSetCount = 0;
+      let totalSupersetVolume = 0;
+      let maxVolume = 0;
+
+      Object.values(supersetGroups).forEach(group => {
+        const exerciseCount = group.exercises.size;
+        totalSupersetVolume += group.volume;
+        maxVolume = Math.max(maxVolume, group.volume);
+
+        if (exerciseCount === 2) supersetCount++;
+        else if (exerciseCount === 3) trisetCount++;
+        else giantSetCount++;
+      });
+
+      setSupersetStats({
+        total: Object.keys(supersetGroups).length,
+        supersetCount,
+        trisetCount,
+        giantSetCount,
+        volume: totalSupersetVolume,
+        maxVolume
       });
     } catch (error) {
       console.error('Erreur chargement stats:', error);
@@ -193,7 +245,7 @@ export default function StatsOverviewScreen({ navigation }) {
     setCurrentMonth(newMonth);
   };
 
-  if (!workoutStats || !runStats || !user) {
+  if (!workoutStats || !runStats || !user || supersetStats === null) {
     return (
       <View style={{ flex: 1, backgroundColor: '#0a1628', alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ color: 'white' }}>Chargement...</Text>
@@ -290,8 +342,8 @@ export default function StatsOverviewScreen({ navigation }) {
 
             {/* Jours de la semaine */}
             <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-              {dayNames.map(day => (
-                <View key={day} style={{ flex: 1, alignItems: 'center' }}>
+              {dayNames.map((day, index) => (
+                <View key={index} style={{ flex: 1, alignItems: 'center' }}>
                   <Text style={{ color: '#6b7280', fontSize: 12, fontWeight: 'bold' }}>{day}</Text>
                 </View>
               ))}
@@ -420,6 +472,62 @@ export default function StatsOverviewScreen({ navigation }) {
               <Text style={{ color: '#f5f5f0', fontWeight: 'bold' }}>{formatTime(workoutStats.workoutTime)}</Text>
             </View>
           </View>
+
+          {/* 🆕 STATS SUPERSETS */}
+          {supersetStats && supersetStats.total > 0 && (
+            <View style={{
+              backgroundColor: 'rgba(0, 245, 255, 0.1)',
+              borderRadius: 24,
+              padding: 20,
+              marginBottom: 16,
+              borderWidth: 1,
+              borderColor: 'rgba(0, 245, 255, 0.3)'
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                <Ionicons name="flash" size={24} color="#00f5ff" />
+                <Text style={{ color: '#f5f5f0', fontSize: 20, fontWeight: 'bold', marginLeft: 12 }}>
+                  🔥 SUPERSETS
+                </Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text style={{ color: '#a8a8a0' }}>• Total complétés :</Text>
+                <Text style={{ color: '#00f5ff', fontWeight: 'bold' }}>{supersetStats.total}</Text>
+              </View>
+
+              {/* Détail par type */}
+              <View style={{ marginLeft: 16, marginBottom: 8 }}>
+                {supersetStats.supersetCount > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={{ color: '#a8a8a0', fontSize: 14 }}>🔥 Supersets (2 ex) :</Text>
+                    <Text style={{ color: '#00f5ff', fontWeight: 'bold', fontSize: 14 }}>{supersetStats.supersetCount}</Text>
+                  </View>
+                )}
+                {supersetStats.trisetCount > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={{ color: '#a8a8a0', fontSize: 14 }}>⚡ Trisets (3 ex) :</Text>
+                    <Text style={{ color: '#b026ff', fontWeight: 'bold', fontSize: 14 }}>{supersetStats.trisetCount}</Text>
+                  </View>
+                )}
+                {supersetStats.giantSetCount > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={{ color: '#a8a8a0', fontSize: 14 }}>🌪️ Giant Sets (4-5 ex) :</Text>
+                    <Text style={{ color: '#ff6b35', fontWeight: 'bold', fontSize: 14 }}>{supersetStats.giantSetCount}</Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text style={{ color: '#a8a8a0' }}>• Volume total :</Text>
+                <Text style={{ color: '#00ff88', fontWeight: 'bold' }}>{supersetStats.volume.toLocaleString()} kg</Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: '#a8a8a0' }}>• Meilleur volume :</Text>
+                <Text style={{ color: '#d4af37', fontWeight: 'bold' }}>{supersetStats.maxVolume.toLocaleString()} kg</Text>
+              </View>
+            </View>
+          )}
 
           <View style={{
             backgroundColor: 'rgba(176, 38, 255, 0.1)',

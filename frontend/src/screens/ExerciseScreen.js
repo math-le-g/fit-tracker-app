@@ -3,31 +3,46 @@ import { useState, useEffect } from 'react';
 import { db } from '../database/database';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { getSupersetInfo } from '../utils/supersetHelpers';
 
 export default function ExerciseScreen({
   exercise,
   setNumber,
   totalSets,
-  onSetComplete,  // ✅ Nom correct
-  previousSets,   // ✅ Pour voir les séries déjà faites
-  exerciseNumber, // ✅ Nom correct (pas exerciseIndex)
+  onSetComplete,
+  previousSets,
+  exerciseNumber,
   totalExercises,
-  onManageExercises, // ✅ Fonction pour gérer les exercices
+  onManageExercises,
   onQuitSession,
-  navigation
+  navigation,
+  // 🆕 PROPS POUR LES SUPERSETS
+  isSuperset = false,
+  supersetRound = null,
+  supersetTotalRounds = null,
+  supersetExerciseIndex = null,
+  supersetTotalExercises = null,
+  supersetName = null
 }) {
   const [weight, setWeight] = useState('');
   const [reps, setReps] = useState('');
   const [lastPerformance, setLastPerformance] = useState(null);
   const [suggestion, setSuggestion] = useState(null);
 
+  // 🆕 OBTENIR LES INFOS DU SUPERSET
+  const supersetInfo = isSuperset && supersetTotalExercises
+    ? getSupersetInfo(supersetTotalExercises)
+    : null;
+
+  // 🆕 VÉRIFIER SI C'EST LE DERNIER EXERCICE DU SUPERSET
+  const isLastExerciseInSuperset = isSuperset && (supersetExerciseIndex === supersetTotalExercises - 1);
+
   useEffect(() => {
     loadLastPerformance();
-  }, []);
+  }, [exercise.id]); // 🆕 Recharger quand l'exercice change
 
   const loadLastPerformance = async () => {
     try {
-      // Charger la dernière performance pour cet exercice
       const lastSets = await db.getAllAsync(`
         SELECT s.weight, s.reps, s.set_number, w.date
         FROM sets s
@@ -41,26 +56,22 @@ export default function ExerciseScreen({
       if (lastSets.length > 0) {
         setLastPerformance(lastSets);
 
-        // Calculer suggestion
         const lastSetForThisNumber = lastSets.find(s => s.set_number === setNumber) || lastSets[0];
         const allSetsSuccessful = lastSets.every(s => s.reps >= 8);
 
         if (allSetsSuccessful && lastSetForThisNumber.reps >= 10) {
-          // Suggérer +1 rep
           setSuggestion({
             weight: lastSetForThisNumber.weight,
             reps: lastSetForThisNumber.reps + 1,
             type: 'reps'
           });
         } else if (allSetsSuccessful && lastSetForThisNumber.reps >= 12) {
-          // Suggérer +5kg
           setSuggestion({
             weight: lastSetForThisNumber.weight + 5,
             reps: 8,
             type: 'weight'
           });
         } else {
-          // Maintenir
           setSuggestion({
             weight: lastSetForThisNumber.weight,
             reps: lastSetForThisNumber.reps,
@@ -68,7 +79,6 @@ export default function ExerciseScreen({
           });
         }
 
-        // Pré-remplir avec la dernière perf
         setWeight(lastSetForThisNumber.weight.toString());
         setReps(lastSetForThisNumber.reps.toString());
       }
@@ -121,10 +131,40 @@ export default function ExerciseScreen({
         >
           <Ionicons name="close" size={20} color="#ff4444" />
         </TouchableOpacity>
+
+        {/* 🆕 BADGE SUPERSET */}
+        {isSuperset && supersetInfo && (
+          <View className={`rounded-2xl p-4 mb-4 border-2 ${supersetInfo.bgColor}/20 ${supersetInfo.borderColor}`}>
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center">
+                <View className={`${supersetInfo.bgColor} rounded-full p-2 mr-3`}>
+                  <Ionicons name={supersetInfo.icon} size={20} color="#0a0e27" />
+                </View>
+                <View>
+                  <Text className={`${supersetInfo.textColor} text-lg font-bold`}>
+                    {supersetInfo.emoji} {supersetInfo.name}
+                  </Text>
+                  <Text className="text-gray-400 text-sm">
+                    Tour {supersetRound}/{supersetTotalRounds}
+                  </Text>
+                </View>
+              </View>
+              <View className={`${supersetInfo.bgColor} rounded-full px-3 py-1`}>
+                <Text className="text-primary-dark font-bold">
+                  {supersetExerciseIndex + 1}/{supersetTotalExercises}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* En-tête */}
         <View className="mb-6">
           <Text className="text-gray-400 text-sm mb-1">
-            Exercice {exerciseNumber}/{totalExercises}
+            {isSuperset
+              ? `Exercice ${supersetExerciseIndex + 1}/${supersetTotalExercises} du superset`
+              : `Exercice ${exerciseNumber}/${totalExercises}`
+            }
           </Text>
           <Text className="text-white text-3xl font-bold mb-2">
             {exercise.name}
@@ -133,8 +173,11 @@ export default function ExerciseScreen({
           {/* Ligne avec Série et Bouton Gérer */}
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center">
-              <Text className="text-accent-cyan text-xl font-bold">
-                Série {setNumber}/{totalSets}
+              <Text className={`text-xl font-bold ${isSuperset ? 'text-accent-cyan' : 'text-accent-cyan'}`}>
+                {isSuperset
+                  ? `Tour ${supersetRound}/${supersetTotalRounds}`
+                  : `Série ${setNumber}/${totalSets}`
+                }
               </Text>
             </View>
 
@@ -148,8 +191,41 @@ export default function ExerciseScreen({
           </View>
         </View>
 
+        {/* 🆕 INFO SUPERSET */}
+        {isSuperset && !isLastExerciseInSuperset && (
+          <View className="bg-accent-cyan/10 rounded-2xl p-4 mb-4 border border-accent-cyan/30">
+            <View className="flex-row items-start">
+              <Ionicons name="information-circle" size={20} color="#00f5ff" />
+              <View className="flex-1 ml-3">
+                <Text className="text-accent-cyan font-bold mb-1">
+                  ⚡ ENCHAÎNEMENT DIRECT
+                </Text>
+                <Text className="text-gray-400 text-sm">
+                  Pas de repos après cette série - enchaîne directement sur l'exercice suivant !
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {isSuperset && isLastExerciseInSuperset && supersetRound < supersetTotalRounds && (
+          <View className="bg-accent-cyan/10 rounded-2xl p-4 mb-4 border border-accent-cyan/30">
+            <View className="flex-row items-start">
+              <Ionicons name="time" size={20} color="#00f5ff" />
+              <View className="flex-1 ml-3">
+                <Text className="text-accent-cyan font-bold mb-1">
+                  💤 REPOS APRÈS CETTE SÉRIE
+                </Text>
+                <Text className="text-gray-400 text-sm">
+                  Repos avant le tour {supersetRound + 1}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Saisie Poids */}
-        <View className="bg-primary-navy rounded-2xl p-4 mb-4">
+        <View className={`rounded-2xl p-4 mb-4 ${isSuperset ? 'bg-accent-cyan/10 border border-accent-cyan/30' : 'bg-primary-navy'}`}>
           <Text className="text-gray-400 text-sm mb-2">POIDS (kg)</Text>
           <View className="flex-row items-center justify-between">
             <TouchableOpacity
@@ -178,7 +254,7 @@ export default function ExerciseScreen({
         </View>
 
         {/* Saisie Reps */}
-        <View className="bg-primary-navy rounded-2xl p-4 mb-6">
+        <View className={`rounded-2xl p-4 mb-6 ${isSuperset ? 'bg-accent-cyan/10 border border-accent-cyan/30' : 'bg-primary-navy'}`}>
           <Text className="text-gray-400 text-sm mb-2">RÉPÉTITIONS</Text>
           <View className="flex-row items-center justify-between">
             <TouchableOpacity
@@ -244,15 +320,22 @@ export default function ExerciseScreen({
           </View>
         )}
 
-        {/* Bouton valider */}
+        {/* 🆕 BOUTON DIFFÉRENT SELON SUPERSET */}
         <TouchableOpacity
-          className="bg-success rounded-2xl p-5 mb-4"
+          className={`rounded-2xl p-5 mb-4 ${isSuperset ? 'bg-accent-cyan' : 'bg-success'}`}
           onPress={handleValidate}
         >
           <View className="flex-row items-center justify-center">
-            <Ionicons name="checkmark-circle" size={28} color="#0a0e27" />
+            <Ionicons
+              name={isSuperset && !isLastExerciseInSuperset ? "arrow-forward-circle" : "checkmark-circle"}
+              size={28}
+              color="#0a0e27"
+            />
             <Text className="text-primary-dark text-xl font-bold ml-2">
-              ✓ VALIDER SÉRIE
+              {isSuperset && !isLastExerciseInSuperset
+                ? '➡️ ENCHAÎNER'
+                : '✓ VALIDER SÉRIE'
+              }
             </Text>
           </View>
         </TouchableOpacity>

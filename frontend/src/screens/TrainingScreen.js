@@ -18,6 +18,7 @@ import CreateCustomExerciseScreen from './CreateCustomExerciseScreen';
 import ManageWorkoutExercisesScreen from './ManageWorkoutExercisesScreen';
 import SelectReplacementExerciseScreen from './SelectReplacementExerciseScreen';
 import EditExerciseScreen from './EditExerciseScreen';
+import CreateSupersetScreen from './CreateSupersetScreen'; // 🆕 AJOUT
 
 const Stack = createNativeStackNavigator();
 
@@ -192,7 +193,7 @@ export default function TrainingScreen() {
         component={WorkoutSessionScreen}
         options={{
           title: 'Séance en cours',
-          headerLeft: () => null, // Empêcher le retour arrière
+          headerLeft: () => null,
         }}
       />
       <Stack.Screen
@@ -200,7 +201,7 @@ export default function TrainingScreen() {
         component={WorkoutSummaryScreen}
         options={{
           title: 'Séance terminée',
-          headerLeft: () => null, // Empêcher le retour
+          headerLeft: () => null,
         }}
       />
       <Stack.Screen
@@ -240,6 +241,12 @@ export default function TrainingScreen() {
         name="EditRoutine"
         component={EditRoutineScreen}
         options={{ title: 'Modifier la routine' }}
+      />
+      {/* 🆕 ROUTE POUR CRÉER UN SUPERSET */}
+      <Stack.Screen
+        name="CreateSuperset"
+        component={CreateSupersetScreen}
+        options={{ title: '🔥 Créer un superset' }}
       />
       <Stack.Screen
         name="CreateCustomExercise"

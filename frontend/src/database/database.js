@@ -20,14 +20,12 @@ export const initDatabase = async () => {
       );
     `);
 
-    // Insérer l'utilisateur par défaut s'il n'existe pas
-    const users = await db.getAllAsync('SELECT * FROM user');
-    if (users.length === 0) {
-      await db.runAsync(`
-        INSERT INTO user (xp, level, streak, best_streak) 
-        VALUES (0, 1, 0, 0)
-      `);
-    }
+    // 🆕 TOUJOURS INSÉRER L'UTILISATEUR (avec ON CONFLICT IGNORE)
+    await db.runAsync(`
+      INSERT OR IGNORE INTO user (id, xp, level, streak, best_streak, vacation_days_used) 
+      VALUES (1, 0, 1, 0, 0, 0)
+    `);
+    console.log('✅ Utilisateur vérifié/créé');
 
     // Table exercices
     await db.execAsync(`
@@ -67,12 +65,26 @@ export const initDatabase = async () => {
         set_number INTEGER NOT NULL,
         weight REAL,
         reps INTEGER,
+        superset_id TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(workout_id) REFERENCES workouts(id),
         FOREIGN KEY(exercise_id) REFERENCES exercises(id)
       );
     `);
 
+    // 🆕 MIGRATION : Ajouter la colonne superset_id si elle n'existe pas
+    try {
+      await db.execAsync(`
+        ALTER TABLE sets ADD COLUMN superset_id TEXT;
+      `);
+      console.log('✅ Colonne superset_id ajoutée à la table sets');
+    } catch (error) {
+      // La colonne existe déjà, c'est normal
+      if (!error.message.includes('duplicate column name')) {
+        console.log('⚠️ Colonne superset_id déjà présente');
+      }
+    }
+    
     // Table courses
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS runs (
@@ -172,10 +184,24 @@ export const initDatabase = async () => {
         order_index INTEGER NOT NULL,
         sets INTEGER DEFAULT 3,
         rest_time INTEGER DEFAULT 90,
+        superset_data TEXT,
         FOREIGN KEY(routine_id) REFERENCES routines(id),
         FOREIGN KEY(exercise_id) REFERENCES exercises(id)
       );
     `);
+
+    // 🆕 MIGRATION : Ajouter la colonne superset_data si elle n'existe pas
+    try {
+      await db.execAsync(`
+        ALTER TABLE routine_exercises ADD COLUMN superset_data TEXT;
+      `);
+      console.log('✅ Colonne superset_data ajoutée');
+    } catch (error) {
+      // La colonne existe déjà, c'est normal
+      if (!error.message.includes('duplicate column name')) {
+        console.log('⚠️ Colonne superset_data déjà présente');
+      }
+    }
 
     // Pré-charger les exercices
     await loadDefaultExercises();
