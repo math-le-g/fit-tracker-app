@@ -28,7 +28,7 @@ export default function RoutineDetailScreen({ route, navigation }) {
         [routineId]
       );
 
-      // 🆕 CHARGER AVEC superset_data ET L'ID DE LA LIGNE
+      // CHARGER AVEC superset_data (qui contient aussi les drop sets)
       const rawExercises = await db.getAllAsync(`
         SELECT 
           re.id as routine_exercise_id,
@@ -45,26 +45,23 @@ export default function RoutineDetailScreen({ route, navigation }) {
         ORDER BY re.order_index ASC
       `, [routineId]);
 
-      // 🆕 PARSER LES SUPERSETS AVEC ID UNIQUE
+      // 🆕 PARSER LES SUPERSETS ET DROP SETS
       const parsedExercises = rawExercises.map((ex, index) => {
         if (ex.superset_data) {
-          // C'est un superset
           try {
-            const supersetData = JSON.parse(ex.superset_data);
+            const data = JSON.parse(ex.superset_data);
             return {
-              ...supersetData,
-              // 🔥 UTILISER L'ID DE LA LIGNE POUR GARANTIR L'UNICITÉ
-              id: `superset_${ex.routine_exercise_id}_${index}`
+              ...data,
+              id: `${data.type}_${ex.routine_exercise_id}_${index}`
             };
           } catch (error) {
-            console.error('❌ Erreur parsing superset:', error);
+            console.error('❌ Erreur parsing:', error);
             return null;
           }
         } else {
-          // Exercice normal
           return ex;
         }
-      }).filter(Boolean); // Retirer les nulls
+      }).filter(Boolean);
 
       console.log('📋 EXERCICES CHARGÉS:', parsedExercises);
 
@@ -81,11 +78,19 @@ export default function RoutineDetailScreen({ route, navigation }) {
   };
 
   const getTotalSets = () => {
-    return exercises.reduce((sum, ex) => sum + ex.sets, 0);
+    return exercises.reduce((sum, ex) => {
+      if (ex.type === 'superset' || ex.type === 'dropset') {
+        return sum + ex.rounds;
+      }
+      return sum + ex.sets;
+    }, 0);
   };
 
   const getEstimatedDuration = () => {
     const workoutTime = exercises.reduce((sum, ex) => {
+      if (ex.type === 'superset' || ex.type === 'dropset') {
+        return sum + (ex.rounds * 45) + ((ex.rounds - 1) * ex.rest_time);
+      }
       return sum + (ex.sets * 45) + ((ex.sets - 1) * ex.rest_time);
     }, 0);
     return Math.round(workoutTime / 60) + warmupDuration;
@@ -93,7 +98,7 @@ export default function RoutineDetailScreen({ route, navigation }) {
 
   const startWorkout = () => {
     navigation.navigate('WorkoutSession', {
-      exercises: exercises, // Directement les exercices chargés (avec supersets)
+      exercises: exercises,
       routineName: routine.name,
       skipWarmup: warmupDuration === 0
     });
@@ -242,11 +247,11 @@ export default function RoutineDetailScreen({ route, navigation }) {
           </Text>
 
           {exercises.map((item, index) => {
-            // 🆕 DÉTECTION SUPERSET
             const isSuperset = item.type === 'superset';
+            const isDropset = item.type === 'dropset';
 
             if (isSuperset) {
-              // 🔥 AFFICHAGE SUPERSET AVEC NOM ADAPTATIF
+              // 🔥 AFFICHAGE SUPERSET
               const supersetInfo = getSupersetInfo(item.exercises.length);
 
               return (
@@ -285,6 +290,43 @@ export default function RoutineDetailScreen({ route, navigation }) {
                   </View>
                 </View>
               );
+            } else if (isDropset) {
+              // 🔻 AFFICHAGE DROP SET
+              return (
+                <View
+                  key={item.id || index}
+                  className={`py-3 ${index < exercises.length - 1 ? 'border-b border-primary-dark' : ''
+                    }`}
+                >
+                  <View className="flex-row items-center mb-2">
+                    <View className="bg-amber-500 rounded-full w-8 h-8 items-center justify-center mr-3">
+                      <Ionicons name="trending-down" size={18} color="#0a0e27" />
+                    </View>
+
+                    <View className="flex-1">
+                      <Text className="text-amber-500 font-bold">
+                        🔻 DROP SET {index + 1}
+                      </Text>
+                      <Text className="text-gray-400 text-xs">
+                        {item.drops} drops • {item.rounds} tours • {item.rest_time}s repos
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Détails du drop set */}
+                  <View className="ml-11 mt-2 bg-primary-dark rounded-xl p-3">
+                    <Text className="text-white font-semibold mb-1">
+                      {item.exercise.name}
+                    </Text>
+                    <Text className="text-gray-400 text-xs">
+                      {item.exercise.muscle_group} • {item.exercise.equipment}
+                    </Text>
+                    <Text className="text-amber-500 text-xs mt-2">
+                      ⚡ Poids dégressifs sans repos
+                    </Text>
+                  </View>
+                </View>
+              );
             } else {
               // ✅ AFFICHAGE EXERCICE NORMAL
               return (
@@ -312,23 +354,6 @@ export default function RoutineDetailScreen({ route, navigation }) {
             }
           })}
         </View>
-
-        {/* 🧪 BADGE DE TEST */}
-        {exercises.length >= 4 && (
-          <View className="bg-accent-cyan/10 rounded-2xl p-4 mb-6 border border-accent-cyan">
-            <View className="flex-row items-start">
-              <Ionicons name="flask" size={20} color="#00f5ff" />
-              <View className="flex-1 ml-3">
-                <Text className="text-accent-cyan text-sm font-bold mb-1">
-                  🧪 MODE TEST SUPERSET
-                </Text>
-                <Text className="text-gray-400 text-xs">
-                  Les exercices 3 et 4 seront automatiquement convertis en superset de 3 tours pour tester la fonctionnalité
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
 
         {/* Suggestions dernière séance */}
         <View className="bg-success/10 rounded-2xl p-4 mb-6 border border-success/20">

@@ -16,30 +16,39 @@ export default function ExerciseScreen({
   onManageExercises,
   onQuitSession,
   navigation,
-  // 🆕 PROPS POUR LES SUPERSETS
+  // PROPS POUR LES SUPERSETS
   isSuperset = false,
   supersetRound = null,
   supersetTotalRounds = null,
   supersetExerciseIndex = null,
   supersetTotalExercises = null,
-  supersetName = null
+  supersetName = null,
+  // 🆕 PROPS POUR LES DROP SETS
+  isDropset = false,
+  dropRound = null,
+  dropTotalRounds = null,
+  dropIndex = null,
+  dropTotalDrops = null
 }) {
   const [weight, setWeight] = useState('');
   const [reps, setReps] = useState('');
   const [lastPerformance, setLastPerformance] = useState(null);
   const [suggestion, setSuggestion] = useState(null);
 
-  // 🆕 OBTENIR LES INFOS DU SUPERSET
+  // OBTENIR LES INFOS DU SUPERSET
   const supersetInfo = isSuperset && supersetTotalExercises
     ? getSupersetInfo(supersetTotalExercises)
     : null;
 
-  // 🆕 VÉRIFIER SI C'EST LE DERNIER EXERCICE DU SUPERSET
+  // VÉRIFIER SI C'EST LE DERNIER EXERCICE DU SUPERSET
   const isLastExerciseInSuperset = isSuperset && (supersetExerciseIndex === supersetTotalExercises - 1);
+
+  // 🆕 VÉRIFIER SI C'EST LE DERNIER DROP
+  const isLastDrop = isDropset && (dropIndex === dropTotalDrops - 1);
 
   useEffect(() => {
     loadLastPerformance();
-  }, [exercise.id]); // 🆕 Recharger quand l'exercice change
+  }, [exercise.id]);
 
   const loadLastPerformance = async () => {
     try {
@@ -113,10 +122,13 @@ export default function ExerciseScreen({
     const w = parseFloat(weight) || 0;
     const r = parseInt(reps) || 0;
 
-    if (w > 0 && r > 0) {
+    // 🆕 Accepter poids = 0 si équipement = "Poids du corps"
+    const isBodyweight = exercise.equipment === 'Poids du corps';
+    const isValidWeight = isBodyweight ? (w >= 0) : (w > 0);
+
+    if (isValidWeight && r > 0) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onSetComplete(w, r);
-      // Reset pour la prochaine série
       setWeight('');
       setReps('');
     }
@@ -126,15 +138,14 @@ export default function ExerciseScreen({
     <ScrollView className="flex-1 bg-primary-dark">
       <View className="p-6">
         <TouchableOpacity
-          className="absolute top-2 right-2 z-10 bg-danger/20 rounded-full p-2"
-          onPress={onQuitSession}
-        >
-          <Ionicons name="close" size={20} color="#ff4444" />
-        </TouchableOpacity>
-
-        {/* 🆕 BADGE SUPERSET */}
+      className="absolute top-4 right-4 z-50 bg-danger/20 rounded-full p-2"
+      onPress={onQuitSession}
+    >
+      <Ionicons name="close" size={20} color="#ff4444" />
+    </TouchableOpacity>
+        {/* 🔥 BADGE SUPERSET */}
         {isSuperset && supersetInfo && (
-          <View className={`rounded-2xl p-4 mb-4 border-2 ${supersetInfo.bgColor}/20 ${supersetInfo.borderColor}`}>
+          <View className={`rounded-2xl p-4 mb-4 mt-12 border-2 ${supersetInfo.bgColor}/20 ${supersetInfo.borderColor}`}>
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center">
                 <View className={`${supersetInfo.bgColor} rounded-full p-2 mr-3`}>
@@ -158,12 +169,44 @@ export default function ExerciseScreen({
           </View>
         )}
 
+        {/* 🆕 BADGE DROP SET */}
+        {isDropset && (
+          <View className="rounded-2xl p-4 mb-4 mt-12 border-2 bg-amber-500/20 border-amber-500">
+            <View className="flex-row items-center justify-between mb-2">
+              <View className="flex-row items-center">
+                <View className="bg-amber-500 rounded-full p-2 mr-3">
+                  <Ionicons name="trending-down" size={20} color="#0a0e27" />
+                </View>
+                <View>
+                  <Text className="text-amber-500 text-lg font-bold">
+                    🔻 DROP SET
+                  </Text>
+                  <Text className="text-gray-400 text-sm">
+                    Tour {dropRound}/{dropTotalRounds}
+                  </Text>
+                </View>
+              </View>
+              <View className="bg-amber-500 rounded-full px-3 py-1">
+                <Text className="text-primary-dark font-bold">
+                  Drop {dropIndex + 1}/{dropTotalDrops}
+                </Text>
+              </View>
+            </View>
+            {/* 🆕 NOM DE L'EXERCICE */}
+            <Text className="text-white font-bold text-lg ml-14">
+              {exercise.name}
+            </Text>
+          </View>
+        )}
+
         {/* En-tête */}
         <View className="mb-6">
           <Text className="text-gray-400 text-sm mb-1">
             {isSuperset
               ? `Exercice ${supersetExerciseIndex + 1}/${supersetTotalExercises} du superset`
-              : `Exercice ${exerciseNumber}/${totalExercises}`
+              : isDropset
+                ? `Drop ${dropIndex + 1}/${dropTotalDrops}`
+                : `Exercice ${exerciseNumber}/${totalExercises}`
             }
           </Text>
           <Text className="text-white text-3xl font-bold mb-2">
@@ -173,10 +216,12 @@ export default function ExerciseScreen({
           {/* Ligne avec Série et Bouton Gérer */}
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center">
-              <Text className={`text-xl font-bold ${isSuperset ? 'text-accent-cyan' : 'text-accent-cyan'}`}>
+              <Text className={`text-xl font-bold ${isSuperset ? 'text-accent-cyan' : isDropset ? 'text-amber-500' : 'text-accent-cyan'}`}>
                 {isSuperset
                   ? `Tour ${supersetRound}/${supersetTotalRounds}`
-                  : `Série ${setNumber}/${totalSets}`
+                  : isDropset
+                    ? `Tour ${dropRound}/${dropTotalRounds}`
+                    : `Série ${setNumber}/${totalSets}`
                 }
               </Text>
             </View>
@@ -191,7 +236,7 @@ export default function ExerciseScreen({
           </View>
         </View>
 
-        {/* 🆕 INFO SUPERSET */}
+        {/* 🔥 INFO SUPERSET - ENCHAÎNEMENT */}
         {isSuperset && !isLastExerciseInSuperset && (
           <View className="bg-accent-cyan/10 rounded-2xl p-4 mb-4 border border-accent-cyan/30">
             <View className="flex-row items-start">
@@ -208,6 +253,7 @@ export default function ExerciseScreen({
           </View>
         )}
 
+        {/* 🔥 INFO SUPERSET - REPOS */}
         {isSuperset && isLastExerciseInSuperset && supersetRound < supersetTotalRounds && (
           <View className="bg-accent-cyan/10 rounded-2xl p-4 mb-4 border border-accent-cyan/30">
             <View className="flex-row items-start">
@@ -224,8 +270,42 @@ export default function ExerciseScreen({
           </View>
         )}
 
+        {/* 🆕 INFO DROP SET - ENCHAÎNEMENT */}
+        {isDropset && !isLastDrop && (
+          <View className="bg-amber-500/10 rounded-2xl p-4 mb-4 border border-amber-500/30">
+            <View className="flex-row items-start">
+              <Ionicons name="information-circle" size={20} color="#f59e0b" />
+              <View className="flex-1 ml-3">
+                <Text className="text-amber-500 font-bold mb-1">
+                  🔻 BAISSE LE POIDS ET ENCHAÎNE !
+                </Text>
+                <Text className="text-gray-400 text-sm">
+                  Réduis le poids (environ -20%) et enchaîne immédiatement sans repos !
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* 🆕 INFO DROP SET - REPOS */}
+        {isDropset && isLastDrop && dropRound < dropTotalRounds && (
+          <View className="bg-amber-500/10 rounded-2xl p-4 mb-4 border border-amber-500/30">
+            <View className="flex-row items-start">
+              <Ionicons name="time" size={20} color="#f59e0b" />
+              <View className="flex-1 ml-3">
+                <Text className="text-amber-500 font-bold mb-1">
+                  💤 REPOS APRÈS CE DROP
+                </Text>
+                <Text className="text-gray-400 text-sm">
+                  Repos avant le tour {dropRound + 1}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Saisie Poids */}
-        <View className={`rounded-2xl p-4 mb-4 ${isSuperset ? 'bg-accent-cyan/10 border border-accent-cyan/30' : 'bg-primary-navy'}`}>
+        <View className={`rounded-2xl p-4 mb-4 ${isSuperset ? 'bg-accent-cyan/10 border border-accent-cyan/30' : isDropset ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-primary-navy'}`}>
           <Text className="text-gray-400 text-sm mb-2">POIDS (kg)</Text>
           <View className="flex-row items-center justify-between">
             <TouchableOpacity
@@ -254,7 +334,7 @@ export default function ExerciseScreen({
         </View>
 
         {/* Saisie Reps */}
-        <View className={`rounded-2xl p-4 mb-6 ${isSuperset ? 'bg-accent-cyan/10 border border-accent-cyan/30' : 'bg-primary-navy'}`}>
+        <View className={`rounded-2xl p-4 mb-6 ${isSuperset ? 'bg-accent-cyan/10 border border-accent-cyan/30' : isDropset ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-primary-navy'}`}>
           <Text className="text-gray-400 text-sm mb-2">RÉPÉTITIONS</Text>
           <View className="flex-row items-center justify-between">
             <TouchableOpacity
@@ -283,7 +363,7 @@ export default function ExerciseScreen({
         </View>
 
         {/* Dernière performance */}
-        {lastPerformance && lastPerformance.length > 0 && (
+        {lastPerformance && lastPerformance.length > 0 && !isDropset && (
           <View className="bg-primary-navy rounded-2xl p-4 mb-4">
             <Text className="text-gray-400 text-sm mb-2">
               📊 DERNIÈRE FOIS
@@ -294,8 +374,53 @@ export default function ExerciseScreen({
           </View>
         )}
 
+        {/* 🆕 HISTORIQUE DES DROPS PAR TOUR */}
+        {isDropset && previousSets.length > 0 && (
+          <View className="bg-amber-500/10 rounded-2xl p-4 mb-4 border border-amber-500/30">
+            <Text className="text-amber-500 text-sm font-bold mb-3">
+              📊 HISTORIQUE DES SÉRIES
+            </Text>
+            {(() => {
+              // Grouper les drops par tour (round)
+              const tourGroups = {};
+
+              previousSets.forEach(set => {
+                const tourNum = set.round || 1;
+                if (!tourGroups[tourNum]) {
+                  tourGroups[tourNum] = [];
+                }
+                tourGroups[tourNum].push(set);
+              });
+
+              return Object.keys(tourGroups)
+                .sort((a, b) => parseInt(a) - parseInt(b))
+                .map(tourNum => (
+                  <View key={tourNum} className="mb-3">
+                    <Text className="text-amber-400 text-sm font-bold mb-1">
+                      Série {tourNum}
+                    </Text>
+                    {tourGroups[tourNum]
+                      .sort((a, b) => a.dropIndex - b.dropIndex)
+                      .map((set, idx) => (
+                        <Text key={idx} className="text-white text-sm ml-2">
+                          • Drop {set.dropIndex + 1}: {set.weight}kg × {set.reps} reps
+                        </Text>
+                      ))}
+                  </View>
+                ));
+            })()}
+
+            {/* Info série actuelle */}
+            <View className="mt-2 pt-2 border-t border-amber-500/30">
+              <Text className="text-gray-400 text-xs text-center">
+                🔥 Série {dropRound} en cours
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Suggestion */}
-        {suggestion && (
+        {suggestion && !isDropset && (
           <View className="bg-accent-cyan/10 rounded-2xl p-4 mb-6 border border-accent-cyan/20">
             <View className="flex-row items-center mb-3">
               <Ionicons name="bulb" size={20} color="#00f5ff" />
@@ -320,35 +445,51 @@ export default function ExerciseScreen({
           </View>
         )}
 
-        {/* 🆕 BOUTON DIFFÉRENT SELON SUPERSET */}
+        {/* 🆕 BOUTON ADAPTÉ AU CONTEXTE */}
         <TouchableOpacity
-          className={`rounded-2xl p-5 mb-4 ${isSuperset ? 'bg-accent-cyan' : 'bg-success'}`}
+          className={`rounded-2xl p-5 mb-4 ${isSuperset && !isLastExerciseInSuperset
+            ? 'bg-accent-cyan'
+            : isDropset && !isLastDrop
+              ? 'bg-amber-500'
+              : 'bg-success'
+            }`}
           onPress={handleValidate}
         >
           <View className="flex-row items-center justify-center">
             <Ionicons
-              name={isSuperset && !isLastExerciseInSuperset ? "arrow-forward-circle" : "checkmark-circle"}
+              name={
+                (isSuperset && !isLastExerciseInSuperset) || (isDropset && !isLastDrop)
+                  ? "arrow-forward-circle"
+                  : "checkmark-circle"
+              }
               size={28}
               color="#0a0e27"
             />
             <Text className="text-primary-dark text-xl font-bold ml-2">
               {isSuperset && !isLastExerciseInSuperset
                 ? '➡️ ENCHAÎNER'
-                : '✓ VALIDER SÉRIE'
+                : isDropset && !isLastDrop
+                  ? '🔻 DROP SUIVANT'
+                  : '✓ VALIDER SÉRIE'
               }
             </Text>
           </View>
         </TouchableOpacity>
 
-        {/* Bouton répéter uniquement */}
-        <TouchableOpacity
-          className="bg-primary-navy rounded-xl p-3"
-          onPress={() => applySuggestion('repeat')}
-        >
-          <Text className="text-gray-400 text-center font-semibold">
-            = Répéter dernière perf
-          </Text>
-        </TouchableOpacity>
+        {/* Bouton répéter */}
+        {!isDropset && (
+          <TouchableOpacity
+            className="bg-primary-navy rounded-xl p-3 mb-4"
+            onPress={() => applySuggestion('repeat')}
+          >
+            <Text className="text-gray-400 text-center font-semibold">
+              = Répéter dernière perf
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        
+
       </View>
     </ScrollView>
   );

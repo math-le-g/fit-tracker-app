@@ -16,11 +16,17 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [currentSetIndex, setCurrentSetIndex] = useState(0);
 
-  // 🆕 ÉTATS POUR LES SUPERSETS
+  // ÉTATS POUR LES SUPERSETS
   const [currentSupersetId, setCurrentSupersetId] = useState(null);
   const [currentSupersetRound, setCurrentSupersetRound] = useState(1);
   const [currentSupersetExerciseIndex, setCurrentSupersetExerciseIndex] = useState(0);
-  const [supersetCompletedSets, setSupersetCompletedSets] = useState({}); // { exerciseId: [sets...] }
+  const [supersetCompletedSets, setSupersetCompletedSets] = useState({});
+
+  // 🆕 ÉTATS POUR LES DROP SETS
+  const [currentDropsetId, setCurrentDropsetId] = useState(null);
+  const [currentDropRound, setCurrentDropRound] = useState(1);
+  const [currentDropIndex, setCurrentDropIndex] = useState(0);
+  const [dropsetCompletedSets, setDropsetCompletedSets] = useState([]);
 
   const [currentPhase, setCurrentPhase] = useState(skipWarmup ? 'exercise' : 'warmup');
   const [workoutStartTime, setWorkoutStartTime] = useState(null);
@@ -34,14 +40,17 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState({});
 
-  // 🆕 DÉTECTION SI L'EXERCICE ACTUEL EST UN SUPERSET
+  // DÉTECTION DU TYPE D'EXERCICE ACTUEL
   const currentItem = exercises[currentExerciseIndex];
   const isSuperset = currentItem?.type === 'superset';
+  const isDropset = currentItem?.type === 'dropset';
 
-  // 🆕 SI SUPERSET, RÉCUPÉRER L'EXERCICE ACTUEL DANS LE SUPERSET
+  // RÉCUPÉRER L'EXERCICE ACTUEL
   const currentExercise = isSuperset
     ? currentItem.exercises[currentSupersetExerciseIndex]
-    : currentItem;
+    : isDropset
+      ? currentItem.exercise
+      : currentItem;
 
   useEffect(() => {
     if (skipWarmup && !workoutStartTime) {
@@ -106,10 +115,8 @@ export default function WorkoutSessionScreen({ route, navigation }) {
         [workoutDuration, totalVolume, totalSets, xpGained, 'Séance partielle (quittée)', workoutId]
       );
 
-      // 🆕 CALCULER LE STREAK (même pour séance partielle)
       const { newStreak, newBestStreak } = await updateStreak();
 
-      // 🆕 INCLURE LE STREAK DANS LA MISE À JOUR
       await db.runAsync(
         'UPDATE user SET xp = xp + ?, last_workout_date = ?, streak = ?, best_streak = ? WHERE id = 1',
         [xpGained, new Date().toISOString(), newStreak, newBestStreak]
@@ -189,49 +196,32 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     }
   };
 
-  // 🆕 FONCTION DE CALCUL DU STREAK
   const updateStreak = async () => {
     try {
       const user = await db.getFirstAsync('SELECT * FROM user WHERE id = 1');
 
       const now = new Date();
-      now.setHours(0, 0, 0, 0); // Début de la journée actuelle
+      now.setHours(0, 0, 0, 0);
 
       let newStreak = 1;
 
       if (user.last_workout_date) {
         const lastWorkout = new Date(user.last_workout_date);
-        lastWorkout.setHours(0, 0, 0, 0); // Début de la journée de la dernière séance
+        lastWorkout.setHours(0, 0, 0, 0);
 
         const diffTime = now - lastWorkout;
         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-        console.log(`📅 Dernière séance: ${lastWorkout.toLocaleDateString()}`);
-        console.log(`📅 Aujourd'hui: ${now.toLocaleDateString()}`);
-        console.log(`📅 Différence: ${diffDays} jours`);
-
         if (diffDays === 0) {
-          // ✅ Même jour → streak reste identique
           newStreak = user.streak;
-          console.log('✅ Même jour, streak reste à:', newStreak);
         } else if (diffDays === 1) {
-          // 🔥 Jour suivant → streak + 1
           newStreak = user.streak + 1;
-          console.log('🔥 Jour consécutif ! Nouveau streak:', newStreak);
         } else {
-          // 💔 Gap de 2+ jours → reset à 1
           newStreak = 1;
-          console.log('💔 Streak perdu ! Reset à 1');
         }
-      } else {
-        // 🎉 Première séance ever
-        newStreak = 1;
-        console.log('🎉 Première séance ! Streak = 1');
       }
 
-      // 🏆 Mettre à jour le best_streak si record battu
       const newBestStreak = Math.max(newStreak, user.best_streak);
-
       return { newStreak, newBestStreak };
     } catch (error) {
       console.error('❌ Erreur calcul streak:', error);
@@ -239,7 +229,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     }
   };
 
-  // 🆕 FONCTION MODIFIÉE POUR GÉRER LES SUPERSETS
+  // 🆕 FONCTION MODIFIÉE POUR GÉRER SUPERSETS ET DROP SETS
   const completeSet = async (weight, reps) => {
     try {
       if (!currentExercise) {
@@ -253,32 +243,84 @@ export default function WorkoutSessionScreen({ route, navigation }) {
         return;
       }
 
-      // 🆕 GÉNÉRER UN SUPERSET_ID SI C'EST LE PREMIER EXERCICE D'UN SUPERSET
+      // GÉNÉRER UN ID UNIQUE SI SUPERSET OU DROP SET
       let supersetId = null;
+      let dropsetId = null;
+
       if (isSuperset) {
         if (!currentSupersetId) {
-          // Premier exercice du superset : créer un nouvel ID
           supersetId = `superset_${workoutId}_${Date.now()}`;
           setCurrentSupersetId(supersetId);
         } else {
-          // Utiliser l'ID existant
           supersetId = currentSupersetId;
         }
+      } else if (isDropset) {
+        if (!currentDropsetId) {
+          dropsetId = `dropset_${workoutId}_${Date.now()}`;
+          setCurrentDropsetId(dropsetId);
+        } else {
+          dropsetId = currentDropsetId;
+        }
+      }
+
+      // 🆕 CALCULER LE BON NUMÉRO DE SÉRIE
+      let setNumber;
+      if (isDropset) {
+        // Pour les drop sets : utiliser la longueur du tableau + 1
+        setNumber = dropsetCompletedSets.length + 1;
+      } else if (isSuperset) {
+        // Pour les supersets : utiliser la longueur du tableau de cet exercice + 1
+        setNumber = (supersetCompletedSets[currentExercise.id] || []).length + 1;
+      } else {
+        // Exercice normal
+        setNumber = currentSetIndex + 1;
       }
 
       // Enregistrer la série en BDD
       await db.runAsync(
-        'INSERT INTO sets (workout_id, exercise_id, set_number, weight, reps, superset_id) VALUES (?, ?, ?, ?, ?, ?)',
-        [workoutId, currentExercise.id, currentSetIndex + 1, weight, reps, supersetId]
+        'INSERT INTO sets (workout_id, exercise_id, set_number, weight, reps, superset_id, dropset_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [workoutId, currentExercise.id, setNumber, weight, reps, supersetId, dropsetId]
       );
 
       // Mettre à jour les stats
       setTotalVolume(prev => prev + (weight * reps));
       setTotalSets(prev => prev + 1);
 
-      // 🆕 SI SUPERSET
-      if (isSuperset) {
-        // Ajouter la série aux completedSets du superset
+      // 🔻 LOGIQUE DROP SET
+      if (isDropset) {
+        // 🆕 AJOUTER LE NUMÉRO DE TOUR
+        const newDropSets = [...dropsetCompletedSets, {
+          weight,
+          reps,
+          dropIndex: currentDropIndex,
+          round: currentDropRound  // 🔥 AJOUTER LE TOUR !
+        }];
+        setDropsetCompletedSets(newDropSets);
+
+        const isLastDrop = currentDropIndex === currentItem.drops - 1;
+
+        if (isLastDrop) {
+          // Fin d'un tour du drop set
+          const isLastRound = currentDropRound === currentItem.rounds;
+
+          if (isLastRound) {
+            // 🎉 DROP SET TERMINÉ
+            console.log('🎉 Drop set terminé !');
+            completeDropsetExercise(newDropSets);
+          } else {
+            // 🔁 REPOS entre les tours
+            console.log(`💤 Repos entre tours (${currentDropRound}/${currentItem.rounds})`);
+            setCurrentPhase('rest');
+          }
+        } else {
+          // ➡️ PROCHAIN DROP (SANS REPOS)
+          console.log(`🔻 Drop suivant (${currentDropIndex + 1}/${currentItem.drops})`);
+          setCurrentDropIndex(currentDropIndex + 1);
+          // Rester en phase 'exercise'
+        }
+      }
+      // 🔥 LOGIQUE SUPERSET
+      else if (isSuperset) {
         const exerciseId = currentExercise.id;
         const newSupersetSets = {
           ...supersetCompletedSets,
@@ -286,31 +328,25 @@ export default function WorkoutSessionScreen({ route, navigation }) {
         };
         setSupersetCompletedSets(newSupersetSets);
 
-        // Vérifier si on est au dernier exercice du superset
         const isLastExerciseInSuperset = currentSupersetExerciseIndex === currentItem.exercises.length - 1;
 
         if (isLastExerciseInSuperset) {
-          // Fin d'un tour du superset
           const isLastRound = currentSupersetRound === currentItem.rounds;
 
           if (isLastRound) {
-            // 🎉 SUPERSET TERMINÉ
             console.log('🎉 Superset terminé !');
             completeSupersetExercise(newSupersetSets);
           } else {
-            // 🔁 REPOS entre les tours
             console.log(`💤 Repos entre tours (${currentSupersetRound}/${currentItem.rounds})`);
             setCurrentPhase('rest');
           }
         } else {
-          // ➡️ PASSER AU PROCHAIN EXERCICE DU SUPERSET (SANS REPOS)
-          console.log(`➡️ Exercice suivant dans le superset (${currentSupersetExerciseIndex + 1}/${currentItem.exercises.length})`);
+          console.log(`➡️ Exercice suivant dans le superset`);
           setCurrentSupersetExerciseIndex(currentSupersetExerciseIndex + 1);
           setCurrentSetIndex(0);
-          // Rester en phase 'exercise' pour enchaîner directement
         }
       }
-      // ✅ EXERCICE NORMAL (logique existante)
+      // ✅ EXERCICE NORMAL
       else {
         const newCompletedSets = [...completedSets, { weight, reps }];
         setCompletedSets(newCompletedSets);
@@ -327,25 +363,40 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     }
   };
 
-  // 🆕 FONCTION POUR TERMINER UN SUPERSET
-  const completeSupersetExercise = (supersetSets) => {
-    console.log('✅ Superset complété avec toutes les séries:', supersetSets);
+  // 🆕 FONCTION POUR TERMINER UN DROP SET
+  const completeDropsetExercise = (dropSets) => {
+  console.log('✅ Drop set complété:', dropSets);
+  
+  setAllCompletedExercises([...allCompletedExercises, {
+    exercise: currentItem,
+    sets: dropSets,
+    isDropset: true
+  }]);
 
-    // Enregistrer le superset comme exercice complété
+  // ❌ NE PAS VIDER ICI, juste changer de phase !
+  if (currentExerciseIndex < exercises.length - 1) {
+    setCurrentPhase('transition');
+  } else {
+    finishWorkout();
+  }
+};
+
+  // FONCTION POUR TERMINER UN SUPERSET
+  const completeSupersetExercise = (supersetSets) => {
+    console.log('✅ Superset complété:', supersetSets);
+
     setAllCompletedExercises([...allCompletedExercises, {
       exercise: currentItem,
       sets: supersetSets,
       isSuperset: true
     }]);
 
-    // Reset des états du superset
     setSupersetCompletedSets({});
     setCurrentSupersetRound(1);
     setCurrentSupersetExerciseIndex(0);
     setCurrentSetIndex(0);
-    setCurrentSupersetId(null); // 🆕 RESET du superset_id
+    setCurrentSupersetId(null);
 
-    // Passer à l'exercice suivant ou terminer
     if (currentExerciseIndex < exercises.length - 1) {
       setCurrentPhase('transition');
     } else {
@@ -353,7 +404,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     }
   };
 
-  // ✅ FONCTION EXISTANTE POUR LES EXERCICES NORMAUX
+  // FONCTION POUR LES EXERCICES NORMAUX
   const completeExercise = (exerciseSets) => {
     setAllCompletedExercises([...allCompletedExercises, {
       exercise: currentExercise,
@@ -368,28 +419,37 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   };
 
   const startNextExercise = () => {
-    setCurrentExerciseIndex(currentExerciseIndex + 1);
-    setCurrentSetIndex(0);
-    setCompletedSets([]);
+  setCurrentExerciseIndex(currentExerciseIndex + 1);
+  setCurrentSetIndex(0);
+  setCompletedSets([]);
 
-    // 🆕 Reset des états du superset pour le prochain exercice
-    setCurrentSupersetRound(1);
-    setCurrentSupersetExerciseIndex(0);
-    setSupersetCompletedSets({});
-    setCurrentSupersetId(null); // 🆕 RESET du superset_id
+  // Reset des états
+  setCurrentSupersetRound(1);
+  setCurrentSupersetExerciseIndex(0);
+  setSupersetCompletedSets({});
+  setCurrentSupersetId(null);
 
-    setCurrentPhase('exercise');
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  };
+  // 🆕 VIDER ICI APRÈS LA TRANSITION
+  setCurrentDropRound(1);
+  setCurrentDropIndex(0);
+  setDropsetCompletedSets([]);
+  setCurrentDropsetId(null);
 
-  // 🆕 FONCTION MODIFIÉE POUR GÉRER LE REPOS DANS LES SUPERSETS
+  setCurrentPhase('exercise');
+  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+};
+
+  // 🆕 FONCTION MODIFIÉE POUR GÉRER LE REPOS DANS LES SUPERSETS ET DROP SETS
   const finishRest = () => {
     if (isSuperset) {
-      // Après le repos entre les tours du superset
       setCurrentSupersetRound(currentSupersetRound + 1);
-      setCurrentSupersetExerciseIndex(0); // Recommencer au premier exercice
+      setCurrentSupersetExerciseIndex(0);
       setCurrentSetIndex(0);
       console.log(`🔁 Nouveau tour du superset: ${currentSupersetRound + 1}/${currentItem.rounds}`);
+    } else if (isDropset) {
+      setCurrentDropRound(currentDropRound + 1);
+      setCurrentDropIndex(0);
+      console.log(`🔁 Nouveau tour du drop set: ${currentDropRound + 1}/${currentItem.rounds}`);
     }
     setCurrentPhase('exercise');
   };
@@ -404,20 +464,18 @@ export default function WorkoutSessionScreen({ route, navigation }) {
         [workoutDuration, totalVolume, totalSets, xpGained, workoutId]
       );
 
-      // 🆕 CALCULER LE STREAK
       const { newStreak, newBestStreak } = await updateStreak();
 
       const user = await db.getFirstAsync('SELECT * FROM user WHERE id = 1');
       const newXp = user.xp + xpGained;
       const newLevel = Math.floor(newXp / 100) + 1;
 
-      // 🆕 INCLURE LE STREAK DANS LA MISE À JOUR
       await db.runAsync(
         'UPDATE user SET xp = ?, level = ?, last_workout_date = ?, streak = ?, best_streak = ? WHERE id = 1',
         [newXp, newLevel, new Date().toISOString(), newStreak, newBestStreak]
       );
 
-      console.log(`✅ Séance terminée ! Streak: ${newStreak} jours (Record: ${newBestStreak})`);
+      console.log(`✅ Séance terminée ! Streak: ${newStreak} jours`);
 
       navigation.replace('WorkoutSummary', {
         workoutId: workoutId,
@@ -445,7 +503,6 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     return (
       <View className="flex-1 bg-primary-dark items-center justify-center p-6">
         <Text className="text-white text-xl text-center">⚠️ Problème avec l'exercice</Text>
-        <Text className="text-gray-400 text-center mt-2">L'exercice n'a pas pu être chargé</Text>
         <TouchableOpacity
           className="bg-primary-navy rounded-xl p-4 mt-4"
           onPress={() => navigation.goBack()}
@@ -466,7 +523,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
             className="absolute top-4 right-4 z-10 bg-danger/20 rounded-full p-3"
             onPress={handleQuitSession}
           >
-            <Ionicons name="close" size={24} color="#ff4444" />
+            <Ionicons name="close" size={20} color="#ff4444" />
           </TouchableOpacity>
           <View className="flex-1 justify-center items-center">
             <View className="bg-primary-navy rounded-3xl p-8 w-full">
@@ -517,21 +574,27 @@ export default function WorkoutSessionScreen({ route, navigation }) {
         <ExerciseScreen
           exercise={currentExercise}
           setNumber={currentSetIndex + 1}
-          totalSets={isSuperset ? currentItem.rounds : currentExercise.sets}
+          totalSets={isSuperset ? currentItem.rounds : isDropset ? currentItem.rounds : currentExercise.sets}
           onSetComplete={completeSet}
-          previousSets={isSuperset ? (supersetCompletedSets[currentExercise.id] || []) : completedSets}
+          previousSets={isSuperset ? (supersetCompletedSets[currentExercise.id] || []) : isDropset ? dropsetCompletedSets : completedSets}
           exerciseNumber={currentExerciseIndex + 1}
           totalExercises={exercises.length}
           onManageExercises={handleManageExercises}
           navigation={navigation}
           onQuitSession={handleQuitSession}
-          // 🆕 PROPS SPÉCIFIQUES AUX SUPERSETS
+          // PROPS SUPERSETS
           isSuperset={isSuperset}
           supersetRound={isSuperset ? currentSupersetRound : null}
           supersetTotalRounds={isSuperset ? currentItem.rounds : null}
           supersetExerciseIndex={isSuperset ? currentSupersetExerciseIndex : null}
           supersetTotalExercises={isSuperset ? currentItem.exercises.length : null}
           supersetName={isSuperset ? `Superset ${currentExerciseIndex + 1}` : null}
+          // 🆕 PROPS DROP SETS
+          isDropset={isDropset}
+          dropRound={isDropset ? currentDropRound : null}
+          dropTotalRounds={isDropset ? currentItem.rounds : null}
+          dropIndex={isDropset ? currentDropIndex : null}
+          dropTotalDrops={isDropset ? currentItem.drops : null}
         />
       );
       break;
@@ -539,17 +602,26 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     case 'rest':
       content = (
         <RestTimerScreen
-          duration={isSuperset ? currentItem.rest_time : currentExercise.rest_time}
+          duration={isSuperset ? currentItem.rest_time : isDropset ? currentItem.rest_time : currentExercise.rest_time}
           onComplete={finishRest}
-          nextSet={isSuperset ? null : currentSetIndex + 1}
-          totalSets={isSuperset ? null : currentExercise.sets}
-          exerciseName={isSuperset ? `Superset - Tour ${currentSupersetRound + 1}/${currentItem.rounds}` : currentExercise.name}
+          nextSet={isSuperset || isDropset ? null : currentSetIndex + 1}
+          totalSets={isSuperset || isDropset ? null : currentExercise.sets}
+          exerciseName={
+            isSuperset
+              ? `Superset - Tour ${currentSupersetRound + 1}/${currentItem.rounds}`
+              : isDropset
+                ? `Drop Set - Tour ${currentDropRound + 1}/${currentItem.rounds}`
+                : currentExercise.name
+          }
           navigation={navigation}
           onQuitSession={handleQuitSession}
-          // 🆕 INFO SUPERSET
           isSuperset={isSuperset}
           supersetRound={isSuperset ? currentSupersetRound : null}
           supersetTotalRounds={isSuperset ? currentItem.rounds : null}
+          // 🆕 INFO DROP SET
+          isDropset={isDropset}
+          dropRound={isDropset ? currentDropRound : null}
+          dropTotalRounds={isDropset ? currentItem.rounds : null}
         />
       );
       break;
@@ -558,7 +630,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
       content = (
         <ExerciseTransitionScreen
           completedExercise={currentItem}
-          completedSets={isSuperset ? supersetCompletedSets : completedSets}
+          completedSets={isSuperset ? supersetCompletedSets : isDropset ? dropsetCompletedSets : completedSets}
           nextExercise={exercises[currentExerciseIndex + 1]}
           exerciseNumber={currentExerciseIndex + 1}
           totalExercises={exercises.length}
@@ -570,6 +642,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
           onUpdateExercises={handleUpdateExercises}
           onQuitSession={handleQuitSession}
           isSuperset={currentItem?.type === 'superset'}
+          isDropset={currentItem?.type === 'dropset'}
         />
       );
       break;

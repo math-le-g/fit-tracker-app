@@ -19,6 +19,8 @@ import ManageWorkoutExercisesScreen from './ManageWorkoutExercisesScreen';
 import SelectReplacementExerciseScreen from './SelectReplacementExerciseScreen';
 import EditExerciseScreen from './EditExerciseScreen';
 import CreateSupersetScreen from './CreateSupersetScreen'; // 🆕 AJOUT
+import CreateDropsetScreen from './CreateDropsetScreen'; // 🆕 DROP SET
+
 
 const Stack = createNativeStackNavigator();
 
@@ -247,6 +249,12 @@ export default function TrainingScreen() {
         name="CreateSuperset"
         component={CreateSupersetScreen}
         options={{ title: '🔥 Créer un superset' }}
+      />
+      {/* 🆕 ROUTE POUR CRÉER UN DROP SET */}
+      <Stack.Screen
+        name="CreateDropset"
+        component={CreateDropsetScreen}
+        options={{ title: '🔻 Créer un drop set' }}
       />
       <Stack.Screen
         name="CreateCustomExercise"

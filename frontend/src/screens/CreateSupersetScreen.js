@@ -200,9 +200,23 @@ export default function CreateSupersetScreen({ route, navigation }) {
 
                     {/* Liste des exercices disponibles */}
                     <View className="bg-primary-navy rounded-2xl p-4 mb-4">
-                        <Text className="text-gray-400 text-sm mb-3">
-                            📋 EXERCICES DISPONIBLES ({filteredExercises.length})
-                        </Text>
+                        <View className="flex-row items-center justify-between mb-3">
+                            <Text className="text-gray-400 text-sm">
+                                📋 EXERCICES DISPONIBLES ({filteredExercises.length})
+                            </Text>
+                            {/* 🆕 BOUTON CRÉER EXERCICE */}
+                            <TouchableOpacity
+                                className="bg-accent-cyan rounded-full px-3 py-1.5 flex-row items-center"
+                                onPress={() => {
+                                    navigation.navigate('CreateCustomExercise');
+                                }}
+                            >
+                                <Ionicons name="add" size={16} color="#0a0e27" />
+                                <Text className="text-primary-dark text-xs font-bold ml-1">
+                                    CRÉER
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
                         {filteredExercises.map((ex) => {
                             const selected = isExerciseSelected(ex.id);
                             return (
@@ -380,8 +394,8 @@ export default function CreateSupersetScreen({ route, navigation }) {
                     {/* Boutons */}
                     <TouchableOpacity
                         className={`rounded-2xl p-5 mb-3 ${selectedExercises.length >= MIN_EXERCISES
-                                ? 'bg-accent-cyan'
-                                : 'bg-gray-700'
+                            ? 'bg-accent-cyan'
+                            : 'bg-gray-700'
                             }`}
                         onPress={handleCreateSuperset}
                         disabled={selectedExercises.length < MIN_EXERCISES}
@@ -393,8 +407,8 @@ export default function CreateSupersetScreen({ route, navigation }) {
                                 color={selectedExercises.length >= MIN_EXERCISES ? "#0a0e27" : "#6b7280"}
                             />
                             <Text className={`text-xl font-bold ml-2 ${selectedExercises.length >= MIN_EXERCISES
-                                    ? 'text-primary-dark'
-                                    : 'text-gray-500'
+                                ? 'text-primary-dark'
+                                : 'text-gray-500'
                                 }`}>
                                 {isEditMode
                                     ? '✓ ENREGISTRER'

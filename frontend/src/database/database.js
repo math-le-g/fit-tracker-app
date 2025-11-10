@@ -84,6 +84,19 @@ export const initDatabase = async () => {
         console.log('⚠️ Colonne superset_id déjà présente');
       }
     }
+
+    // 🆕 MIGRATION : Ajouter la colonne dropset_id si elle n'existe pas
+try {
+  await db.execAsync(`
+    ALTER TABLE sets ADD COLUMN dropset_id TEXT;
+  `);
+  console.log('✅ Colonne dropset_id ajoutée à la table sets');
+} catch (error) {
+  // La colonne existe déjà, c'est normal
+  if (!error.message.includes('duplicate column name')) {
+    console.log('⚠️ Colonne dropset_id déjà présente');
+  }
+}
     
     // Table courses
     await db.execAsync(`
