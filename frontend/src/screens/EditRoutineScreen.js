@@ -335,6 +335,13 @@ export default function EditRoutineScreen({ route, navigation }) {
     }
   };
 
+  const handleAddTimedExercise = async (timedExercise) => {
+    // Ajouter directement à la liste sans sauvegarder en BDD
+    setSelectedExercises([...selectedExercises, timedExercise]);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    console.log('✅ Exercice chronométré ajouté à la liste');
+  };
+
 
   const saveRoutine = async () => {
     if (!routineName.trim()) {
@@ -402,6 +409,22 @@ export default function EditRoutineScreen({ route, navigation }) {
           await db.runAsync(
             'INSERT INTO routine_exercises (routine_id, exercise_id, order_index, sets, rest_time, superset_data) VALUES (?, ?, ?, ?, ?, ?)',
             [routineId, -2, i, item.rounds, item.rest_time, dropsetData]
+          );
+        } else if (item.type === 'timed') {
+          // 🆕 EXERCICE CHRONOMÉTRÉ
+          const timedData = JSON.stringify({
+            type: 'timed',
+            mode: item.mode,
+            exercise: item.exercise,
+            duration: item.duration,
+            workDuration: item.workDuration,
+            restDuration: item.restDuration,
+            rounds: item.rounds
+          });
+
+          await db.runAsync(
+            'INSERT INTO routine_exercises (routine_id, exercise_id, order_index, sets, rest_time, superset_data) VALUES (?, ?, ?, ?, ?, ?)',
+            [routineId, -3, i, 1, 0, timedData]
           );
         } else {
           // EXERCICE NORMAL
@@ -524,8 +547,85 @@ export default function EditRoutineScreen({ route, navigation }) {
             {selectedExercises.map((item, index) => {
               const isSuperset = item.type === 'superset';
               const isDropset = item.type === 'dropset';
+              const isTimed = item.type === 'timed';
 
-              if (isSuperset) {
+              if (isTimed) {
+    // ⏱️ AFFICHAGE EXERCICE CHRONOMÉTRÉ
+    return (
+      <View
+        key={item.id || index}
+        className="rounded-xl p-4 mb-3 border-2 bg-purple-500/10 border-purple-500"
+      >
+        <View className="flex-row items-center justify-between mb-3">
+          <View className="flex-row items-center flex-1">
+            <View className="bg-purple-500 rounded-full p-2 mr-3">
+              <Ionicons name="timer" size={20} color="#0a0e27" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-purple-500 font-bold text-lg">
+                ⏱️ EXERCICE CHRONOMÉTRÉ {index + 1}
+              </Text>
+              <Text className="text-gray-400 text-sm">
+                {item.exercise.name} • {item.mode === 'simple' ? `${Math.floor(item.duration / 60)} min` : `${item.rounds} intervalles`}
+              </Text>
+            </View>
+          </View>
+
+          <View className="flex-row gap-2">
+            <TouchableOpacity
+              onPress={() => moveExercise(index, 'up')}
+              disabled={index === 0}
+            >
+              <Ionicons
+                name="chevron-up"
+                size={20}
+                color={index === 0 ? '#374151' : '#a855f7'}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => moveExercise(index, 'down')}
+              disabled={index === selectedExercises.length - 1}
+            >
+              <Ionicons
+                name="chevron-down"
+                size={20}
+                color={index === selectedExercises.length - 1 ? '#374151' : '#a855f7'}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => removeExercise(index)}>
+              <Ionicons name="trash" size={20} color="#ff4444" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View className="bg-primary-dark rounded-xl p-3">
+          {item.mode === 'simple' ? (
+            <Text className="text-white text-sm">
+              ⏱️ Durée : {Math.floor(item.duration / 60)} min
+            </Text>
+          ) : (
+            <>
+              <Text className="text-white text-sm">
+                💪 Travail : {item.workDuration}s
+              </Text>
+              <Text className="text-white text-sm">
+                😮‍💨 Repos : {item.restDuration}s
+              </Text>
+              <Text className="text-white text-sm">
+                🔁 Tours : {item.rounds}
+              </Text>
+            </>
+          )}
+        </View>
+
+        <View className="mt-3 pt-3 border-t border-purple-500/30">
+          <Text className="text-gray-400 text-xs text-center">
+            {item.mode === 'simple' ? '⏱️ Timer libre' : `🔥 ${item.rounds} intervalles`}
+          </Text>
+        </View>
+      </View>
+    );
+  } else if (isSuperset) {
                 // 🔥 AFFICHAGE SUPERSET
                 const supersetInfo = getSupersetInfo(item.exercises.length);
 
@@ -757,6 +857,26 @@ export default function EditRoutineScreen({ route, navigation }) {
               <Text className="text-gray-400 text-xs mt-1">
                 Poids dégressifs sur 1 exercice
               </Text>
+            </TouchableOpacity>
+            {/* Bouton ajouter exercice chronométré */}
+            <TouchableOpacity
+              className="bg-accent-cyan/20 border-2 border-accent-cyan rounded-2xl p-4 mb-3"
+              onPress={async () => {
+                const exercises = await db.getAllAsync('SELECT * FROM exercises ORDER BY muscle_group, name');
+                navigation.navigate('CreateTimedExercise', {
+                  availableExercises: exercises,
+                  onCreateTimedExercise: (timedExercise) => {
+                    handleAddTimedExercise(timedExercise);
+                  }
+                });
+              }}
+            >
+              <View className="flex-row items-center justify-center">
+                <Ionicons name="timer-outline" size={24} color="#00f5ff" />
+                <Text className="text-accent-cyan font-bold text-lg ml-2">
+                  ⏱️ Ajouter exercice chronométré
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
 

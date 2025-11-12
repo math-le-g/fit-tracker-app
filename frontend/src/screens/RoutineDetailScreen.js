@@ -11,6 +11,7 @@ export default function RoutineDetailScreen({ route, navigation }) {
   const [routine, setRoutine] = useState(null);
   const [exercises, setExercises] = useState([]);
   const [warmupDuration, setWarmupDuration] = useState(0);
+  const [lastWorkout, setLastWorkout] = useState(null);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState({});
@@ -74,7 +75,49 @@ export default function RoutineDetailScreen({ route, navigation }) {
   };
 
   const loadLastWorkoutSuggestions = async () => {
-    // TODO: Charger dernière séance pour suggestions
+    try {
+      // Récupérer le dernier workout
+      const lastWorkoutData = await db.getFirstAsync(`
+      SELECT w.*, 
+        (SELECT COUNT(*) FROM sets WHERE workout_id = w.id) as total_sets,
+        (SELECT SUM(weight * reps) FROM sets WHERE workout_id = w.id) as total_volume
+      FROM workouts w
+      ORDER BY w.date DESC
+      LIMIT 1
+    `);
+
+      if (lastWorkoutData) {
+        // Calculer il y a combien de jours
+        const lastDate = new Date(lastWorkoutData.date);
+        const today = new Date();
+        const diffTime = Math.abs(today - lastDate);
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+        // 🆕 CHARGER LES EXERCICES DE CETTE SÉANCE
+        const workoutExercises = await db.getAllAsync(`
+        SELECT 
+          e.name,
+          COUNT(DISTINCT s.set_number) as sets_done,
+          MAX(s.weight) as max_weight,
+          AVG(s.reps) as avg_reps,
+          SUM(s.weight * s.reps) as exercise_volume
+        FROM sets s
+        JOIN exercises e ON s.exercise_id = e.id
+        WHERE s.workout_id = ?
+        GROUP BY s.exercise_id
+        ORDER BY MIN(s.id)
+        LIMIT 3
+      `, [lastWorkoutData.id]);
+
+        setLastWorkout({
+          ...lastWorkoutData,
+          daysAgo: diffDays,
+          exercises: workoutExercises
+        });
+      }
+    } catch (error) {
+      console.error('❌ Erreur chargement dernière séance:', error);
+    }
   };
 
   const getTotalSets = () => {
@@ -249,105 +292,262 @@ export default function RoutineDetailScreen({ route, navigation }) {
           {exercises.map((item, index) => {
             const isSuperset = item.type === 'superset';
             const isDropset = item.type === 'dropset';
+            const isTimed = item.type === 'timed';
 
-            if (isSuperset) {
-              // 🔥 AFFICHAGE SUPERSET
-              const supersetInfo = getSupersetInfo(item.exercises.length);
-
+            if (isTimed) {
+              // ⏱️ AFFICHAGE EXERCICE CHRONOMÉTRÉ
               return (
                 <View
                   key={item.id || index}
-                  className={`py-3 ${index < exercises.length - 1 ? 'border-b border-primary-dark' : ''
-                    }`}
+                  className={`py-3 ${index < exercises.length - 1 ? 'border-b border-primary-dark' : ''}`}
                 >
-                  <View className="flex-row items-center mb-2">
-                    <View className={`${supersetInfo.bgColor} rounded-full w-8 h-8 items-center justify-center mr-3`}>
-                      <Ionicons name={supersetInfo.icon} size={18} color="#0a0e27" />
+                  <View className="bg-purple-500/10 rounded-2xl p-4 border border-purple-500/30">
+                    <View className="flex-row items-center mb-3">
+                      <View className="bg-purple-500 rounded-full w-10 h-10 items-center justify-center mr-3">
+                        <Ionicons name="timer" size={20} color="#0a0e27" />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-purple-500 text-xs font-bold mb-1">
+                          ⏱️ EXERCICE CHRONOMÉTRÉ {index + 1}
+                        </Text>
+                        <Text className="text-white font-bold text-lg">
+                          {item.exercise.name}
+                        </Text>
+                      </View>
                     </View>
 
-                    <View className="flex-1">
-                      <Text className={`${supersetInfo.textColor} font-bold`}>
-                        {supersetInfo.emoji} {supersetInfo.name} {index + 1}
-                      </Text>
-                      <Text className="text-gray-400 text-xs">
-                        {item.exercises.length} exercices • {item.rounds} tours • {item.rest_time}s repos
+                    {/* Détails */}
+                    <View className="bg-primary-dark rounded-xl p-3">
+                      {item.mode === 'simple' ? (
+                        <View className="flex-row items-center justify-between">
+                          <View className="flex-row items-center">
+                            <Ionicons name="time" size={16} color="#a855f7" />
+                            <Text className="text-gray-400 text-sm ml-2">Durée :</Text>
+                          </View>
+                          <Text className="text-white font-bold">
+                            {Math.floor(item.duration / 60)} min
+                          </Text>
+                        </View>
+                      ) : (
+                        <>
+                          <View className="flex-row items-center justify-between mb-2">
+                            <View className="flex-row items-center">
+                              <Ionicons name="flash" size={16} color="#a855f7" />
+                              <Text className="text-gray-400 text-sm ml-2">Travail :</Text>
+                            </View>
+                            <Text className="text-white font-bold">{item.workDuration}s</Text>
+                          </View>
+                          <View className="flex-row items-center justify-between mb-2">
+                            <View className="flex-row items-center">
+                              <Ionicons name="pause" size={16} color="#a855f7" />
+                              <Text className="text-gray-400 text-sm ml-2">Repos :</Text>
+                            </View>
+                            <Text className="text-white font-bold">{item.restDuration}s</Text>
+                          </View>
+                          <View className="flex-row items-center justify-between">
+                            <View className="flex-row items-center">
+                              <Ionicons name="repeat" size={16} color="#a855f7" />
+                              <Text className="text-gray-400 text-sm ml-2">Tours :</Text>
+                            </View>
+                            <Text className="text-white font-bold">{item.rounds}</Text>
+                          </View>
+                        </>
+                      )}
+                    </View>
+
+                    {/* Note explicative */}
+                    <View className="bg-purple-500/20 rounded-xl p-2 border border-purple-500/30 mt-3">
+                      <Text className="text-purple-500 text-xs text-center font-semibold">
+                        {item.mode === 'simple'
+                          ? '⏱️ Timer libre'
+                          : `🔥 ${item.rounds} intervalles (${item.workDuration}s / ${item.restDuration}s)`
+                        }
                       </Text>
                     </View>
                   </View>
-
-                  {/* Exercices du superset */}
-                  <View className="ml-11 mt-2 bg-primary-dark rounded-xl p-3">
-                    {item.exercises.map((ex, exIndex) => (
-                      <View key={ex.id} className="flex-row items-center mb-1">
-                        <View className={`${supersetInfo.bgColor} rounded-full w-5 h-5 items-center justify-center mr-2`}>
-                          <Text className="text-primary-dark text-xs font-bold">
-                            {exIndex + 1}
-                          </Text>
-                        </View>
-                        <Text className="text-white text-sm">{ex.name}</Text>
+                </View>
+              );
+            } else if (isSuperset) {
+              const supersetInfo = getSupersetInfo(item.exercises.length);
+              return (
+                <View
+                  key={item.id || index}
+                  className={`py-3 ${index < exercises.length - 1 ? 'border-b border-primary-dark' : ''}`}
+                >
+                  <View className={`${supersetInfo.bgColor}/10 rounded-2xl p-4 border ${supersetInfo.borderColor}`}>
+                    <View className="flex-row items-center mb-3">
+                      <View className={`${supersetInfo.bgColor} rounded-full w-10 h-10 items-center justify-center mr-3`}>
+                        <Ionicons name={supersetInfo.icon} size={20} color="#0a0e27" />
                       </View>
-                    ))}
+                      <View className="flex-1">
+                        <Text className={`${supersetInfo.textColor} text-xs font-bold mb-1`}>
+                          {supersetInfo.emoji} {supersetInfo.name.toUpperCase()} {index + 1}
+                        </Text>
+                        <Text className="text-white font-bold text-lg">
+                          {item.exercises.map(ex => ex.name).join(' + ')}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Détails du superset */}
+                    <View className="bg-primary-dark rounded-xl p-3 mb-3">
+                      <View className="flex-row items-center justify-between mb-2">
+                        <View className="flex-row items-center">
+                          <Ionicons name="layers" size={16} color="#00f5ff" />
+                          <Text className="text-gray-400 text-sm ml-2">Tours :</Text>
+                        </View>
+                        <Text className="text-white font-bold">{item.rounds}</Text>
+                      </View>
+                      <View className="flex-row items-center justify-between">
+                        <View className="flex-row items-center">
+                          <Ionicons name="time" size={16} color="#00f5ff" />
+                          <Text className="text-gray-400 text-sm ml-2">Repos :</Text>
+                        </View>
+                        <Text className="text-white font-bold">
+                          {Math.floor(item.rest_time / 60)}:{(item.rest_time % 60).toString().padStart(2, '0')}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Liste des exercices */}
+                    <View className="bg-primary-dark rounded-xl p-3">
+                      <Text className={`${supersetInfo.textColor} text-xs font-bold mb-2`}>
+                        ⚡ ENCHAÎNEMENT SANS REPOS
+                      </Text>
+                      {item.exercises.map((ex, exIndex) => (
+                        <View key={ex.id} className="flex-row items-center mb-2">
+                          <View className={`${supersetInfo.bgColor} rounded-full w-6 h-6 items-center justify-center mr-2`}>
+                            <Text className="text-primary-dark text-xs font-bold">
+                              {exIndex + 1}
+                            </Text>
+                          </View>
+                          <View className="flex-1">
+                            <Text className="text-white font-semibold text-sm">{ex.name}</Text>
+                            <Text className="text-gray-400 text-xs">
+                              {ex.muscle_group} • {ex.equipment}
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
                   </View>
                 </View>
               );
             } else if (isDropset) {
-              // 🔻 AFFICHAGE DROP SET
               return (
                 <View
                   key={item.id || index}
-                  className={`py-3 ${index < exercises.length - 1 ? 'border-b border-primary-dark' : ''
-                    }`}
+                  className={`py-3 ${index < exercises.length - 1 ? 'border-b border-primary-dark' : ''}`}
                 >
-                  <View className="flex-row items-center mb-2">
-                    <View className="bg-amber-500 rounded-full w-8 h-8 items-center justify-center mr-3">
-                      <Ionicons name="trending-down" size={18} color="#0a0e27" />
+                  <View className="bg-amber-500/10 rounded-2xl p-4 border border-amber-500/30">
+                    <View className="flex-row items-center mb-3">
+                      <View className="bg-amber-500 rounded-full w-10 h-10 items-center justify-center mr-3">
+                        <Ionicons name="trending-down" size={20} color="#0a0e27" />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-amber-500 text-xs font-bold mb-1">
+                          🔻 DROP SET {index + 1}
+                        </Text>
+                        <Text className="text-white font-bold text-lg">
+                          {item.exercise.name}
+                        </Text>
+                      </View>
                     </View>
 
-                    <View className="flex-1">
-                      <Text className="text-amber-500 font-bold">
-                        🔻 DROP SET {index + 1}
-                      </Text>
-                      <Text className="text-gray-400 text-xs">
-                        {item.drops} drops • {item.rounds} tours • {item.rest_time}s repos
+                    {/* Détails du drop set */}
+                    <View className="bg-primary-dark rounded-xl p-3 mb-3">
+                      <View className="flex-row items-center justify-between mb-2">
+                        <View className="flex-row items-center">
+                          <Ionicons name="flash" size={16} color="#f59e0b" />
+                          <Text className="text-gray-400 text-sm ml-2">Drops :</Text>
+                        </View>
+                        <Text className="text-white font-bold">{item.drops}</Text>
+                      </View>
+                      <View className="flex-row items-center justify-between mb-2">
+                        <View className="flex-row items-center">
+                          <Ionicons name="layers" size={16} color="#f59e0b" />
+                          <Text className="text-gray-400 text-sm ml-2">Tours :</Text>
+                        </View>
+                        <Text className="text-white font-bold">{item.rounds}</Text>
+                      </View>
+                      <View className="flex-row items-center justify-between">
+                        <View className="flex-row items-center">
+                          <Ionicons name="time" size={16} color="#f59e0b" />
+                          <Text className="text-gray-400 text-sm ml-2">Repos :</Text>
+                        </View>
+                        <Text className="text-white font-bold">
+                          {Math.floor(item.rest_time / 60)}:{(item.rest_time % 60).toString().padStart(2, '0')}
+                        </Text>
+                      </View>
+
+                      {/* Info groupe musculaire */}
+                      <View className="mt-2 pt-2 border-t border-primary-navy">
+                        <Text className="text-gray-400 text-xs">
+                          🎯 {item.exercise.muscle_group} • {item.exercise.equipment}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Note explicative */}
+                    <View className="bg-amber-500/20 rounded-xl p-2 border border-amber-500/30">
+                      <Text className="text-amber-500 text-xs text-center font-semibold">
+                        ⚡ Poids dégressifs • Enchaînement sans repos
                       </Text>
                     </View>
-                  </View>
-
-                  {/* Détails du drop set */}
-                  <View className="ml-11 mt-2 bg-primary-dark rounded-xl p-3">
-                    <Text className="text-white font-semibold mb-1">
-                      {item.exercise.name}
-                    </Text>
-                    <Text className="text-gray-400 text-xs">
-                      {item.exercise.muscle_group} • {item.exercise.equipment}
-                    </Text>
-                    <Text className="text-amber-500 text-xs mt-2">
-                      ⚡ Poids dégressifs sans repos
-                    </Text>
                   </View>
                 </View>
               );
             } else {
-              // ✅ AFFICHAGE EXERCICE NORMAL
+              // ✅ NOUVEAU CODE STYLÉ
               return (
                 <View
                   key={item.id}
-                  className={`flex-row items-center py-3 ${index < exercises.length - 1 ? 'border-b border-primary-dark' : ''
+                  className={`py-3 ${index < exercises.length - 1 ? 'border-b border-primary-dark' : ''
                     }`}
                 >
-                  <View className="bg-accent-cyan rounded-full w-8 h-8 items-center justify-center mr-3">
-                    <Text className="text-primary-dark font-bold">
-                      {index + 1}
-                    </Text>
-                  </View>
+                  <View className="bg-success/10 rounded-2xl p-4 border border-success/30">
+                    <View className="flex-row items-center mb-3">
+                      <View className="bg-success rounded-full w-10 h-10 items-center justify-center mr-3">
+                        <Ionicons name="fitness" size={20} color="#0a0e27" />
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-success text-xs font-bold mb-1">
+                          💪 EXERCICE {index + 1}
+                        </Text>
+                        <Text className="text-white font-bold text-lg">
+                          {item.name}
+                        </Text>
+                      </View>
+                    </View>
 
-                  <View className="flex-1">
-                    <Text className="text-white font-semibold">
-                      {item.name}
-                    </Text>
-                    <Text className="text-gray-400 text-sm">
-                      {item.sets} séries • {item.rest_time}s repos
-                    </Text>
+                    {/* Détails de l'exercice */}
+                    <View className="bg-primary-dark rounded-xl p-3">
+                      <View className="flex-row items-center justify-between mb-2">
+                        <View className="flex-row items-center">
+                          <Ionicons name="layers" size={16} color="#00ff88" />
+                          <Text className="text-gray-400 text-sm ml-2">Séries :</Text>
+                        </View>
+                        <Text className="text-white font-bold">{item.sets}</Text>
+                      </View>
+                      <View className="flex-row items-center justify-between">
+                        <View className="flex-row items-center">
+                          <Ionicons name="time" size={16} color="#00ff88" />
+                          <Text className="text-gray-400 text-sm ml-2">Repos :</Text>
+                        </View>
+                        <Text className="text-white font-bold">
+                          {Math.floor(item.rest_time / 60)}:{(item.rest_time % 60).toString().padStart(2, '0')}
+                        </Text>
+                      </View>
+
+                      {/* Info groupe musculaire */}
+                      {item.muscle_group && (
+                        <View className="mt-2 pt-2 border-t border-primary-navy">
+                          <Text className="text-gray-400 text-xs">
+                            🎯 {item.muscle_group} • {item.equipment || 'Non défini'}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
                 </View>
               );
@@ -356,20 +556,81 @@ export default function RoutineDetailScreen({ route, navigation }) {
         </View>
 
         {/* Suggestions dernière séance */}
-        <View className="bg-success/10 rounded-2xl p-4 mb-6 border border-success/20">
-          <View className="flex-row items-center mb-2">
-            <Ionicons name="bulb" size={20} color="#00ff88" />
-            <Text className="text-success text-sm font-bold ml-2">
-              💡 DERNIÈRE FOIS
-            </Text>
+
+        {lastWorkout ? (
+          <View className="bg-success/10 rounded-2xl p-4 mb-6 border border-success/20">
+            <View className="flex-row items-center justify-between mb-3">
+              <View className="flex-row items-center">
+                <Ionicons name="time-outline" size={20} color="#00ff88" />
+                <Text className="text-success text-sm font-bold ml-2">
+                  📊 DERNIÈRE SÉANCE
+                </Text>
+              </View>
+              <Text className="text-gray-400 text-xs">
+                Il y a {lastWorkout.daysAgo === 0 ? "aujourd'hui" : lastWorkout.daysAgo === 1 ? "1 jour" : `${lastWorkout.daysAgo} jours`}
+              </Text>
+            </View>
+
+            {/* Stats globales */}
+            <View className="flex-row items-center justify-between mb-3 bg-primary-dark rounded-xl p-3">
+              <View className="flex-row items-center">
+                <Text className="text-gray-400 text-sm">
+                  💪 {lastWorkout.total_sets || 0} séries
+                </Text>
+              </View>
+              <View className="flex-row items-center">
+                <Text className="text-gray-400 text-sm">
+                  📦 {Math.round(lastWorkout.total_volume || 0)}kg
+                </Text>
+              </View>
+              {lastWorkout.duration && (
+                <View className="flex-row items-center">
+                  <Text className="text-gray-400 text-sm">
+                    ⏱️ {Math.round(lastWorkout.duration / 60)}min
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Liste des exercices */}
+            {lastWorkout.exercises && lastWorkout.exercises.length > 0 && (
+              <View className="bg-primary-dark rounded-xl p-3">
+                <Text className="text-success text-xs font-bold mb-2">
+                  🏋️ EXERCICES RÉALISÉS
+                </Text>
+                {lastWorkout.exercises.map((ex, idx) => (
+                  <View key={idx} className={`flex-row items-center justify-between ${idx < lastWorkout.exercises.length - 1 ? 'mb-2 pb-2 border-b border-primary-navy' : ''}`}>
+                    <View className="flex-1">
+                      <Text className="text-white text-sm font-semibold">
+                        {ex.name}
+                      </Text>
+                      <Text className="text-gray-400 text-xs">
+                        {ex.sets_done} séries • Max: {ex.max_weight}kg
+                      </Text>
+                    </View>
+                    <Text className="text-success text-xs font-bold">
+                      {Math.round(ex.exercise_volume)}kg
+                    </Text>
+                  </View>
+                ))}
+                {lastWorkout.exercises.length === 3 && (
+                  <Text className="text-gray-400 text-xs text-center mt-2">
+                    ... et plus
+                  </Text>
+                )}
+              </View>
+            )}
           </View>
-          <Text className="text-gray-400 text-sm">
-            Tu as fait cette routine il y a 3 jours
-          </Text>
-          <Text className="text-gray-400 text-sm">
-            Développé Couché : 82kg × 10 → Essaye 85kg ! 🎯
-          </Text>
-        </View>
+        ) : (
+          <View className="bg-gray-700/10 rounded-2xl p-4 mb-6 border border-gray-700/30">
+            <View className="flex-row items-center">
+              <Ionicons name="information-circle" size={20} color="#6b7280" />
+              <Text className="text-gray-400 text-sm ml-2">
+                Première fois avec cette routine ! 🚀
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Bouton commencer */}
         <TouchableOpacity

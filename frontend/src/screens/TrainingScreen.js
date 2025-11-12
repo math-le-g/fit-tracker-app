@@ -20,6 +20,7 @@ import SelectReplacementExerciseScreen from './SelectReplacementExerciseScreen';
 import EditExerciseScreen from './EditExerciseScreen';
 import CreateSupersetScreen from './CreateSupersetScreen'; // 🆕 AJOUT
 import CreateDropsetScreen from './CreateDropsetScreen'; // 🆕 DROP SET
+import CreateTimedExerciseScreen from './CreateTimedExerciseScreen';
 
 
 const Stack = createNativeStackNavigator();
@@ -275,6 +276,11 @@ export default function TrainingScreen() {
         name="EditExercise"
         component={EditExerciseScreen}
         options={{ title: 'Modifier l\'exercice' }}
+      />
+      <Stack.Screen
+        name="CreateTimedExercise"
+        component={CreateTimedExerciseScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

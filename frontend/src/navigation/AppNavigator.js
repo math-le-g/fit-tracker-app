@@ -9,6 +9,7 @@ import StatsScreen from '../screens/StatsScreen';
 import BadgesScreen from '../screens/BadgesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
+
 const Tab = createBottomTabNavigator();
 
 export default function AppNavigator() {

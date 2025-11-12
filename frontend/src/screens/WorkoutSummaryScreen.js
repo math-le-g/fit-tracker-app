@@ -371,21 +371,52 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
                   </View>
                 );
               } else {
-                // ✅ AFFICHAGE EXERCICE NORMAL (inchangé)
+                // ✅ AFFICHAGE EXERCICE NORMAL - NOUVEAU DESIGN
                 return (
                   <View
                     key={index}
-                    className={`py-3 ${index < allItems.length - 1 ? 'border-b border-primary-dark' : ''
-                      }`}
+                    className={`py-3 mb-3 ${index < allItems.length - 1 ? 'border-b border-primary-dark' : ''}`}
                   >
-                    <Text className="text-white font-semibold mb-2">
-                      {item.name}
-                    </Text>
-                    {item.sets.map((set, setIndex) => (
-                      <Text key={setIndex} className="text-gray-400 text-sm">
-                        Série {set.set_number}: {set.weight}kg × {set.reps} reps
-                      </Text>
-                    ))}
+                    <View className="bg-success/10 rounded-2xl p-4 border border-success/30">
+                      <View className="flex-row items-center mb-3">
+                        <View className="bg-success rounded-full w-10 h-10 items-center justify-center mr-3">
+                          <Ionicons name="fitness" size={20} color="#0a0e27" />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-success text-xs font-bold mb-1">
+                            💪 EXERCICE SIMPLE
+                          </Text>
+                          <Text className="text-white font-bold text-lg">
+                            {item.name}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Liste des séries */}
+                      <View className="bg-primary-dark rounded-xl p-3">
+                        {item.sets.map((set, setIndex) => (
+                          <View
+                            key={setIndex}
+                            className={`flex-row items-center justify-between py-2 ${setIndex < item.sets.length - 1 ? 'border-b border-primary-navy' : ''
+                              }`}
+                          >
+                            <View className="flex-row items-center">
+                              <View className="bg-success rounded-full w-6 h-6 items-center justify-center mr-3">
+                                <Text className="text-primary-dark text-xs font-bold">
+                                  {setIndex + 1}
+                                </Text>
+                              </View>
+                              <Text className="text-white text-sm">
+                                Série {set.set_number}
+                              </Text>
+                            </View>
+                            <Text className="text-white font-bold">
+                              {set.weight}kg × {set.reps} reps
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
                   </View>
                 );
               }

@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ExerciseScreen from './ExerciseScreen';
 import RestTimerScreen from './RestTimerScreen';
 import ExerciseTransitionScreen from './ExerciseTransitionScreen';
+import TimedExerciseScreen from './TimedExerciseScreen';
 import * as Haptics from 'expo-haptics';
 import CustomModal from '../components/CustomModal';
 
@@ -44,13 +45,16 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   const currentItem = exercises[currentExerciseIndex];
   const isSuperset = currentItem?.type === 'superset';
   const isDropset = currentItem?.type === 'dropset';
+  const isTimed = currentItem?.type === 'timed'; // 🆕
 
   // RÉCUPÉRER L'EXERCICE ACTUEL
   const currentExercise = isSuperset
     ? currentItem.exercises[currentSupersetExerciseIndex]
     : isDropset
       ? currentItem.exercise
-      : currentItem;
+      : isTimed
+        ? currentItem.exercise  // 🆕
+        : currentItem;
 
   useEffect(() => {
     if (skipWarmup && !workoutStartTime) {
@@ -365,21 +369,50 @@ export default function WorkoutSessionScreen({ route, navigation }) {
 
   // 🆕 FONCTION POUR TERMINER UN DROP SET
   const completeDropsetExercise = (dropSets) => {
-  console.log('✅ Drop set complété:', dropSets);
-  
-  setAllCompletedExercises([...allCompletedExercises, {
-    exercise: currentItem,
-    sets: dropSets,
-    isDropset: true
-  }]);
+    console.log('✅ Drop set complété:', dropSets);
 
-  // ❌ NE PAS VIDER ICI, juste changer de phase !
-  if (currentExerciseIndex < exercises.length - 1) {
-    setCurrentPhase('transition');
-  } else {
-    finishWorkout();
-  }
-};
+    setAllCompletedExercises([...allCompletedExercises, {
+      exercise: currentItem,
+      sets: dropSets,
+      isDropset: true
+    }]);
+
+    // ❌ NE PAS VIDER ICI, juste changer de phase !
+    if (currentExerciseIndex < exercises.length - 1) {
+      setCurrentPhase('transition');
+    } else {
+      finishWorkout();
+    }
+  };
+
+  // 🆕 FONCTION POUR TERMINER UN EXERCICE CHRONOMÉTRÉ
+  const completeTimedExercise = async (durationCompleted) => {
+    try {
+      console.log(`✅ Exercice chronométré complété: ${durationCompleted}s`);
+
+      // Sauvegarder dans la table sets avec weight=0 et reps=durée
+      await db.runAsync(
+        'INSERT INTO sets (workout_id, exercise_id, set_number, weight, reps, superset_id, dropset_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [workoutId, currentExercise.id, 1, 0, durationCompleted, null, null]
+      );
+
+      setTotalSets(prev => prev + 1);
+
+      setAllCompletedExercises([...allCompletedExercises, {
+        exercise: currentItem,
+        durationCompleted: durationCompleted,
+        isTimed: true
+      }]);
+
+      if (currentExerciseIndex < exercises.length - 1) {
+        setCurrentPhase('transition');
+      } else {
+        finishWorkout();
+      }
+    } catch (error) {
+      console.error('❌ Erreur enregistrement exercice chronométré:', error);
+    }
+  };
 
   // FONCTION POUR TERMINER UN SUPERSET
   const completeSupersetExercise = (supersetSets) => {
@@ -419,25 +452,25 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   };
 
   const startNextExercise = () => {
-  setCurrentExerciseIndex(currentExerciseIndex + 1);
-  setCurrentSetIndex(0);
-  setCompletedSets([]);
+    setCurrentExerciseIndex(currentExerciseIndex + 1);
+    setCurrentSetIndex(0);
+    setCompletedSets([]);
 
-  // Reset des états
-  setCurrentSupersetRound(1);
-  setCurrentSupersetExerciseIndex(0);
-  setSupersetCompletedSets({});
-  setCurrentSupersetId(null);
+    // Reset des états
+    setCurrentSupersetRound(1);
+    setCurrentSupersetExerciseIndex(0);
+    setSupersetCompletedSets({});
+    setCurrentSupersetId(null);
 
-  // 🆕 VIDER ICI APRÈS LA TRANSITION
-  setCurrentDropRound(1);
-  setCurrentDropIndex(0);
-  setDropsetCompletedSets([]);
-  setCurrentDropsetId(null);
+    // 🆕 VIDER ICI APRÈS LA TRANSITION
+    setCurrentDropRound(1);
+    setCurrentDropIndex(0);
+    setDropsetCompletedSets([]);
+    setCurrentDropsetId(null);
 
-  setCurrentPhase('exercise');
-  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-};
+    setCurrentPhase('exercise');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
 
   // 🆕 FONCTION MODIFIÉE POUR GÉRER LE REPOS DANS LES SUPERSETS ET DROP SETS
   const finishRest = () => {
@@ -570,33 +603,65 @@ export default function WorkoutSessionScreen({ route, navigation }) {
       break;
 
     case 'exercise':
-      content = (
-        <ExerciseScreen
-          exercise={currentExercise}
-          setNumber={currentSetIndex + 1}
-          totalSets={isSuperset ? currentItem.rounds : isDropset ? currentItem.rounds : currentExercise.sets}
-          onSetComplete={completeSet}
-          previousSets={isSuperset ? (supersetCompletedSets[currentExercise.id] || []) : isDropset ? dropsetCompletedSets : completedSets}
-          exerciseNumber={currentExerciseIndex + 1}
-          totalExercises={exercises.length}
-          onManageExercises={handleManageExercises}
-          navigation={navigation}
-          onQuitSession={handleQuitSession}
-          // PROPS SUPERSETS
-          isSuperset={isSuperset}
-          supersetRound={isSuperset ? currentSupersetRound : null}
-          supersetTotalRounds={isSuperset ? currentItem.rounds : null}
-          supersetExerciseIndex={isSuperset ? currentSupersetExerciseIndex : null}
-          supersetTotalExercises={isSuperset ? currentItem.exercises.length : null}
-          supersetName={isSuperset ? `Superset ${currentExerciseIndex + 1}` : null}
-          // 🆕 PROPS DROP SETS
-          isDropset={isDropset}
-          dropRound={isDropset ? currentDropRound : null}
-          dropTotalRounds={isDropset ? currentItem.rounds : null}
-          dropIndex={isDropset ? currentDropIndex : null}
-          dropTotalDrops={isDropset ? currentItem.drops : null}
-        />
-      );
+      // 🆕 AFFICHER TimedExerciseScreen SI EXERCICE CHRONOMÉTRÉ
+      if (isTimed) {
+        content = (
+          <View className="flex-1 bg-primary-dark">
+            <TouchableOpacity
+              className="absolute top-4 right-4 z-10 bg-danger/20 rounded-full p-3"
+              onPress={handleQuitSession}
+            >
+              <Ionicons name="close" size={20} color="#ff4444" />
+            </TouchableOpacity>
+
+            <TimedExerciseScreen
+              exercise={currentExercise}
+              mode={currentItem.mode}
+              duration={currentItem.duration}
+              workDuration={currentItem.workDuration}
+              restDuration={currentItem.restDuration}
+              rounds={currentItem.rounds}
+              onComplete={() => {
+                // Calculer la durée totale effectuée
+                const totalDuration = currentItem.mode === 'simple'
+                  ? currentItem.duration
+                  : (currentItem.workDuration + currentItem.restDuration) * currentItem.rounds;
+
+                completeTimedExercise(totalDuration);
+              }}
+            />
+          </View>
+        );
+      } else {
+        // Exercice normal, superset ou dropset
+        content = (
+          <ExerciseScreen
+            exercise={currentExercise}
+            setNumber={currentSetIndex + 1}
+            totalSets={isSuperset ? currentItem.rounds : isDropset ? currentItem.rounds : currentExercise.sets}
+            onSetComplete={completeSet}
+            previousSets={isSuperset ? (supersetCompletedSets[currentExercise.id] || []) : isDropset ? dropsetCompletedSets : completedSets}
+            exerciseNumber={currentExerciseIndex + 1}
+            totalExercises={exercises.length}
+            onManageExercises={handleManageExercises}
+            navigation={navigation}
+            onQuitSession={handleQuitSession}
+            // PROPS SUPERSETS
+            isSuperset={isSuperset}
+            supersetRound={isSuperset ? currentSupersetRound : null}
+            supersetTotalRounds={isSuperset ? currentItem.rounds : null}
+            supersetExerciseIndex={isSuperset ? currentSupersetExerciseIndex : null}
+            supersetTotalExercises={isSuperset ? currentItem.exercises.length : null}
+            supersetName={isSuperset ? `Superset ${currentExerciseIndex + 1}` : null}
+            // PROPS DROP SETS
+            isDropset={isDropset}
+            dropRound={isDropset ? currentDropRound : null}
+            dropTotalRounds={isDropset ? currentItem.rounds : null}
+            dropIndex={isDropset ? currentDropIndex : null}
+            dropTotalDrops={isDropset ? currentItem.drops : null}
+          />
+        );
+      }
       break;
 
     case 'rest':

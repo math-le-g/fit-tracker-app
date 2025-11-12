@@ -53,17 +53,38 @@ export default function ExerciseScreen({
   const loadLastPerformance = async () => {
     try {
       const lastSets = await db.getAllAsync(`
-        SELECT s.weight, s.reps, s.set_number, w.date
-        FROM sets s
-        JOIN workouts w ON s.workout_id = w.id
-        WHERE s.exercise_id = ?
-        AND w.id != (SELECT MAX(id) FROM workouts)
-        ORDER BY w.date DESC, s.set_number ASC
-        LIMIT 10
-      `, [exercise.id]);
+      SELECT s.weight, s.reps, s.set_number, w.date
+      FROM sets s
+      JOIN workouts w ON s.workout_id = w.id
+      WHERE s.exercise_id = ?
+      AND w.id != (SELECT MAX(id) FROM workouts)
+      ORDER BY w.date DESC, s.set_number ASC
+      LIMIT 10
+    `, [exercise.id]);
+
+      // 🆕 RÉCUPÉRER LES RECORDS
+      const maxWeight = await db.getFirstAsync(`
+      SELECT MAX(weight) as max_weight
+      FROM sets
+      WHERE exercise_id = ?
+    `, [exercise.id]);
+
+      const maxReps = await db.getFirstAsync(`
+      SELECT MAX(reps) as max_reps, weight
+      FROM sets
+      WHERE exercise_id = ?
+      GROUP BY weight
+      ORDER BY max_reps DESC
+      LIMIT 1
+    `, [exercise.id]);
 
       if (lastSets.length > 0) {
-        setLastPerformance(lastSets);
+        setLastPerformance({
+          lastSets: lastSets,
+          maxWeight: maxWeight?.max_weight || 0,
+          maxReps: maxReps?.max_reps || 0,
+          maxRepsWeight: maxReps?.weight || 0
+        });
 
         const lastSetForThisNumber = lastSets.find(s => s.set_number === setNumber) || lastSets[0];
         const allSetsSuccessful = lastSets.every(s => s.reps >= 8);
@@ -138,11 +159,11 @@ export default function ExerciseScreen({
     <ScrollView className="flex-1 bg-primary-dark">
       <View className="p-6">
         <TouchableOpacity
-      className="absolute top-4 right-4 z-50 bg-danger/20 rounded-full p-2"
-      onPress={onQuitSession}
-    >
-      <Ionicons name="close" size={20} color="#ff4444" />
-    </TouchableOpacity>
+          className="absolute top-4 right-4 z-50 bg-danger/20 rounded-full p-2"
+          onPress={onQuitSession}
+        >
+          <Ionicons name="close" size={20} color="#ff4444" />
+        </TouchableOpacity>
         {/* 🔥 BADGE SUPERSET */}
         {isSuperset && supersetInfo && (
           <View className={`rounded-2xl p-4 mb-4 mt-12 border-2 ${supersetInfo.bgColor}/20 ${supersetInfo.borderColor}`}>
@@ -362,15 +383,46 @@ export default function ExerciseScreen({
           </View>
         </View>
 
-        {/* Dernière performance */}
-        {lastPerformance && lastPerformance.length > 0 && !isDropset && (
+        {/* Dernière performance + Records */}
+        {lastPerformance && lastPerformance.lastSets && lastPerformance.lastSets.length > 0 && !isDropset && (
           <View className="bg-primary-navy rounded-2xl p-4 mb-4">
-            <Text className="text-gray-400 text-sm mb-2">
-              📊 DERNIÈRE FOIS
+            <Text className="text-gray-400 text-sm font-bold mb-3">
+              📊 HISTORIQUE
             </Text>
-            <Text className="text-white font-semibold">
-              {lastPerformance[0].weight}kg × {lastPerformance[0].reps} reps
-            </Text>
+
+            {/* Dernière fois */}
+            <View className="bg-primary-dark rounded-xl p-3 mb-2">
+              <Text className="text-gray-400 text-xs mb-1">Dernière fois</Text>
+              <Text className="text-white font-semibold text-lg">
+                {lastPerformance.lastSets[0].weight}kg × {lastPerformance.lastSets[0].reps} reps
+              </Text>
+            </View>
+
+            {/* Records */}
+            <View className="flex-row gap-2">
+              {/* Record poids */}
+              <View className="flex-1 bg-accent-cyan/10 border border-accent-cyan/30 rounded-xl p-3">
+                <Text className="text-accent-cyan text-xs font-bold mb-1">
+                  🏆 RECORD POIDS
+                </Text>
+                <Text className="text-white font-bold text-xl">
+                  {lastPerformance.maxWeight}kg
+                </Text>
+              </View>
+
+              {/* Record reps */}
+              <View className="flex-1 bg-success/10 border border-success/30 rounded-xl p-3">
+                <Text className="text-success text-xs font-bold mb-1">
+                  💪 RECORD REPS
+                </Text>
+                <Text className="text-white font-bold text-xl">
+                  {lastPerformance.maxReps} reps
+                </Text>
+                <Text className="text-gray-400 text-xs">
+                  à {lastPerformance.maxRepsWeight}kg
+                </Text>
+              </View>
+            </View>
           </View>
         )}
 
@@ -488,7 +540,7 @@ export default function ExerciseScreen({
           </TouchableOpacity>
         )}
 
-        
+
 
       </View>
     </ScrollView>
