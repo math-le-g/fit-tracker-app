@@ -122,29 +122,57 @@ export default function RoutineDetailScreen({ route, navigation }) {
 
   const getTotalSets = () => {
     return exercises.reduce((sum, ex) => {
+      // Superset ou Dropset : compter les rounds
       if (ex.type === 'superset' || ex.type === 'dropset') {
         return sum + ex.rounds;
       }
-      return sum + ex.sets;
+      // Exercice chronométré : 1 série en mode simple, rounds en mode intervalle
+      if (ex.type === 'timed') {
+        return sum + (ex.mode === 'simple' ? 1 : ex.rounds);
+      }
+      // Exercice normal : compter les sets
+      return sum + (ex.sets || 0);
     }, 0);
   };
 
   const getEstimatedDuration = () => {
     const workoutTime = exercises.reduce((sum, ex) => {
+      // Superset ou Dropset : temps = (rounds * 45s) + repos entre rounds
       if (ex.type === 'superset' || ex.type === 'dropset') {
         return sum + (ex.rounds * 45) + ((ex.rounds - 1) * ex.rest_time);
       }
-      return sum + (ex.sets * 45) + ((ex.sets - 1) * ex.rest_time);
+      // Exercice chronométré
+      if (ex.type === 'timed') {
+        if (ex.mode === 'simple') {
+          // Mode simple : durée directe en secondes
+          return sum + ex.duration;
+        } else {
+          // Mode intervalle : (travail + repos) * rounds
+          return sum + ((ex.workDuration + ex.restDuration) * ex.rounds);
+        }
+      }
+      // Exercice normal : temps = (sets * 45s) + repos entre sets
+      return sum + ((ex.sets || 0) * 45) + (((ex.sets || 1) - 1) * (ex.rest_time || 90));
     }, 0);
     return Math.round(workoutTime / 60) + warmupDuration;
   };
 
   const startWorkout = () => {
-    navigation.navigate('WorkoutSession', {
-      exercises: exercises,
-      routineName: routine.name,
-      skipWarmup: warmupDuration === 0
-    });
+    if (warmupDuration > 0) {
+      navigation.navigate('Warmup', {
+        warmupDuration: warmupDuration,
+        exercises: exercises,
+        routineName: routine.name,
+        lastWorkoutDuration: lastWorkout?.workout_duration || null
+      });
+    } else {
+      // Passer directement à la séance
+      navigation.navigate('WorkoutSession', {
+        exercises: exercises,
+        routineName: routine.name,
+        skipWarmup: true
+      });
+    }
   };
 
   const handleModifyRoutine = () => {
@@ -220,9 +248,16 @@ export default function RoutineDetailScreen({ route, navigation }) {
             </Text>
           </View>
           <View className="flex-row items-center">
-            <Ionicons name="time-outline" size={18} color="#6b7280" />
-            <Text className="text-gray-400 ml-1">
-              ~{getEstimatedDuration()} min
+            <Ionicons
+              name={lastWorkout && lastWorkout.workout_duration ? "checkmark-circle" : "time-outline"}
+              size={18}
+              color={lastWorkout && lastWorkout.workout_duration ? "#00ff88" : "#6b7280"}
+            />
+            <Text className={`ml-1 ${lastWorkout && lastWorkout.workout_duration ? 'text-success' : 'text-gray-400'}`}>
+              {lastWorkout && lastWorkout.workout_duration
+                ? `${Math.round(lastWorkout.workout_duration / 60)} min`
+                : `~${getEstimatedDuration()} min`
+              }
             </Text>
           </View>
         </View>
@@ -558,11 +593,11 @@ export default function RoutineDetailScreen({ route, navigation }) {
         {/* Suggestions dernière séance */}
 
         {lastWorkout ? (
-          <View className="bg-success/10 rounded-2xl p-4 mb-6 border border-success/20">
+          <View className="bg-blue-500/10 rounded-2xl p-4 mb-6 border border-blue-500/30">
             <View className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center">
-                <Ionicons name="time-outline" size={20} color="#00ff88" />
-                <Text className="text-success text-sm font-bold ml-2">
+                <Ionicons name="time-outline" size={20} color="#3b82f6" />
+                <Text className="text-blue-500 text-sm font-bold ml-2">
                   📊 DERNIÈRE SÉANCE
                 </Text>
               </View>
@@ -595,7 +630,7 @@ export default function RoutineDetailScreen({ route, navigation }) {
             {/* Liste des exercices */}
             {lastWorkout.exercises && lastWorkout.exercises.length > 0 && (
               <View className="bg-primary-dark rounded-xl p-3">
-                <Text className="text-success text-xs font-bold mb-2">
+                <Text className="text-blue-500 text-xs font-bold mb-2">
                   🏋️ EXERCICES RÉALISÉS
                 </Text>
                 {lastWorkout.exercises.map((ex, idx) => (
@@ -608,15 +643,29 @@ export default function RoutineDetailScreen({ route, navigation }) {
                         {ex.sets_done} séries • Max: {ex.max_weight}kg
                       </Text>
                     </View>
-                    <Text className="text-success text-xs font-bold">
+                    <Text className="text-blue-500 text-xs font-bold">
                       {Math.round(ex.exercise_volume)}kg
                     </Text>
                   </View>
                 ))}
                 {lastWorkout.exercises.length === 3 && (
-                  <Text className="text-gray-400 text-xs text-center mt-2">
-                    ... et plus
-                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      // TODO: Afficher modal avec tous les exercices
+                      setModalConfig({
+                        title: '📋 Tous les exercices',
+                        message: 'Fonctionnalité à venir',
+                        icon: 'list',
+                        iconColor: '#3b82f6',
+                        buttons: [{ text: 'OK', style: 'primary', onPress: () => { } }]
+                      });
+                      setModalVisible(true);
+                    }}
+                  >
+                    <Text className="text-blue-500 text-xs text-center mt-2 font-semibold">
+                      ... et plus →
+                    </Text>
+                  </TouchableOpacity>
                 )}
               </View>
             )}

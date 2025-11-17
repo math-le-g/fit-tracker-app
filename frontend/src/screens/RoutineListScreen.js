@@ -144,7 +144,7 @@ export default function RoutineListScreen({ navigation }) {
     r.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const muscleGroups = ['all', 'Pectoraux', 'Dos', 'Épaules', 'Biceps', 'Triceps', 'Abdominaux', 'Jambes'];
+  const muscleGroups = ['all', 'Pectoraux', 'Dos', 'Épaules', 'Biceps', 'Triceps', 'Abdominaux', 'Jambes', 'Cardio'];
 
   const getTypeEmoji = (type) => {
     switch (type) {

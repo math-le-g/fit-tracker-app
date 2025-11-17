@@ -6,12 +6,10 @@ import * as Haptics from 'expo-haptics';
 import CustomModal from '../components/CustomModal';
 import { getSupersetInfo } from '../utils/supersetHelpers';
 
-
 export default function EditRoutineScreen({ route, navigation }) {
   const { routineId } = route.params;
 
   const [routineName, setRoutineName] = useState('');
-  const [routineType, setRoutineType] = useState('');
   const [selectedExercises, setSelectedExercises] = useState([]);
   const [availableExercises, setAvailableExercises] = useState([]);
   const [showExercisePicker, setShowExercisePicker] = useState(false);
@@ -21,7 +19,7 @@ export default function EditRoutineScreen({ route, navigation }) {
   // Config pour nouvel exercice
   const [showExerciseConfig, setShowExerciseConfig] = useState(false);
   const [selectedExerciseToAdd, setSelectedExerciseToAdd] = useState(null);
-  const [newExerciseSets, setNewExerciseSets] = useState(0);
+  const [newExerciseSets, setNewExerciseSets] = useState(0);  // ✅ CHANGÉ DE 3 À 0
   const [newExerciseRestMinutes, setNewExerciseRestMinutes] = useState(1);
   const [newExerciseRestSeconds, setNewExerciseRestSeconds] = useState(30);
 
@@ -34,16 +32,6 @@ export default function EditRoutineScreen({ route, navigation }) {
   // États pour le modal
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState({});
-
-  const routineTypes = [
-    { value: 'push', label: 'Push', icon: '💪' },
-    { value: 'pull', label: 'Pull', icon: '🔙' },
-    { value: 'legs', label: 'Legs', icon: '🦵' },
-    { value: 'upper', label: 'Upper Body', icon: '💪' },
-    { value: 'lower', label: 'Lower Body', icon: '🦵' },
-    { value: 'full', label: 'Full Body', icon: '🏋️' },
-    { value: 'custom', label: 'Custom', icon: '⚡' }
-  ];
 
   const muscleGroups = ['all', 'Pectoraux', 'Dos', 'Épaules', 'Biceps', 'Triceps', 'Abdominaux', 'Jambes'];
 
@@ -59,8 +47,8 @@ export default function EditRoutineScreen({ route, navigation }) {
       );
 
       setRoutineName(routine.name);
-      setRoutineType(routine.type || 'custom');
 
+      // ✅ CHARGER AVEC superset_data
       const rawExercises = await db.getAllAsync(`
         SELECT 
           re.id as routine_exercise_id,
@@ -77,21 +65,25 @@ export default function EditRoutineScreen({ route, navigation }) {
         ORDER BY re.order_index ASC
       `, [routineId]);
 
-      // 🆕 PARSER LES SUPERSETS ET DROP SETS
+      // ✅ PARSER LES SUPERSETS, DROP SETS ET EXERCICES CHRONOMÉTRÉS
       const parsedExercises = rawExercises.map((ex, index) => {
         if (ex.superset_data) {
           try {
             const data = JSON.parse(ex.superset_data);
             return {
               ...data,
-              id: `${data.type}_${ex.routine_exercise_id}_${index}`
+              id: `${data.type}_${ex.routine_exercise_id}_${index}`,
+              routine_exercise_id: ex.routine_exercise_id
             };
           } catch (error) {
             console.error('❌ Erreur parsing:', error);
             return null;
           }
         } else {
-          return ex;
+          return {
+            ...ex,
+            routine_exercise_id: ex.routine_exercise_id
+          };
         }
       }).filter(Boolean);
 
@@ -99,7 +91,7 @@ export default function EditRoutineScreen({ route, navigation }) {
 
       setSelectedExercises(parsedExercises);
     } catch (error) {
-      console.error('Erreur chargement routine:', error);
+      console.error('❌ Erreur chargement routine:', error);
     }
   };
 
@@ -119,7 +111,7 @@ export default function EditRoutineScreen({ route, navigation }) {
 
   const selectExercise = (exercise) => {
     setSelectedExerciseToAdd(exercise);
-    setNewExerciseSets(0);
+    setNewExerciseSets(0);  // ✅ CHANGÉ DE 3 À 0
     setNewExerciseRestMinutes(1);
     setNewExerciseRestSeconds(30);
     setShowExercisePicker(false);
@@ -144,6 +136,20 @@ export default function EditRoutineScreen({ route, navigation }) {
 
   const editExercise = (index) => {
     const exercise = selectedExercises[index];
+
+    // ❌ Ne pas éditer les supersets/dropsets/timed avec ce modal
+    if (exercise.type === 'superset' || exercise.type === 'dropset' || exercise.type === 'timed') {
+      setModalConfig({
+        title: 'Édition impossible',
+        message: 'Supprime cet élément et recrée-le pour le modifier',
+        icon: 'information-circle',
+        iconColor: '#ff9500',
+        buttons: [{ text: 'OK', style: 'primary', onPress: () => { } }]
+      });
+      setModalVisible(true);
+      return;
+    }
+
     setEditingExerciseIndex(index);
     setEditingSets(exercise.sets);
     const minutes = Math.floor(exercise.rest_time / 60);
@@ -185,163 +191,35 @@ export default function EditRoutineScreen({ route, navigation }) {
     }
   };
 
-  // FONCTION POUR OUVRIR LE CRÉATEUR DE SUPERSET
-  const openSupersetCreator = async () => {
-    try {
-      const exercises = await db.getAllAsync('SELECT * FROM exercises ORDER BY muscle_group, name');
-
-      navigation.navigate('CreateSuperset', {
-        availableExercises: exercises,
-        onCreateSuperset: (superset) => {
-          setSelectedExercises([...selectedExercises, superset]);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-      });
-    } catch (error) {
-      console.error('Erreur chargement exercices:', error);
-    }
-  };
-
-  // 🆕 FONCTION POUR OUVRIR LE CRÉATEUR DE DROP SET
-  const openDropsetCreator = async () => {
-    try {
-      const exercises = await db.getAllAsync('SELECT * FROM exercises ORDER BY muscle_group, name');
-
-      navigation.navigate('CreateDropset', {
-        availableExercises: exercises,
-        onCreateDropset: (dropset) => {
-          setSelectedExercises([...selectedExercises, dropset]);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-      });
-    } catch (error) {
-      console.error('Erreur chargement exercices:', error);
-    }
-  };
-
-  // FONCTION POUR DISSOCIER UN SUPERSET
-  const dissociateSuperset = (index) => {
-    const superset = selectedExercises[index];
-
-    if (superset.type !== 'superset') return;
-
-    setModalConfig({
-      title: '🔓 Dissocier le superset ?',
-      message: 'Les exercices seront remis en exercices normaux (3 séries chacun)',
-      icon: 'git-branch',
-      iconColor: '#00f5ff',
-      buttons: [
-        { text: 'Annuler', onPress: () => { } },
-        {
-          text: 'Dissocier',
-          style: 'primary',
-          onPress: () => {
-            const newList = [...selectedExercises];
-            const normalExercises = superset.exercises.map(ex => ({
-              ...ex,
-              sets: 3,
-              rest_time: 90
-            }));
-
-            newList.splice(index, 1, ...normalExercises);
-            setSelectedExercises(newList);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          }
-        }
-      ]
+  // ✅ CRÉER UN SUPERSET
+  const handleCreateSuperset = () => {
+    navigation.navigate('CreateSuperset', {
+      onCreateSuperset: (supersetData) => {
+        setSelectedExercises([...selectedExercises, supersetData]);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
     });
-    setModalVisible(true);
   };
 
-  // 🆕 FONCTION POUR DISSOCIER UN DROP SET
-  const dissociateDropset = (index) => {
-    const dropset = selectedExercises[index];
-
-    if (dropset.type !== 'dropset') return;
-
-    setModalConfig({
-      title: '🔓 Dissocier le drop set ?',
-      message: `${dropset.exercise.name} sera remis en exercice normal (3 séries)`,
-      icon: 'git-branch',
-      iconColor: '#f59e0b',
-      buttons: [
-        { text: 'Annuler', onPress: () => { } },
-        {
-          text: 'Dissocier',
-          style: 'primary',
-          onPress: () => {
-            const newList = [...selectedExercises];
-            const normalExercise = {
-              ...dropset.exercise,
-              sets: 3,
-              rest_time: 90
-            };
-
-            newList.splice(index, 1, normalExercise);
-            setSelectedExercises(newList);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          }
-        }
-      ]
+  // ✅ CRÉER UN DROP SET
+  const handleCreateDropset = () => {
+    navigation.navigate('CreateDropset', {
+      onCreateDropset: (dropsetData) => {
+        setSelectedExercises([...selectedExercises, dropsetData]);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
     });
-    setModalVisible(true);
   };
 
-  // FONCTION POUR MODIFIER UN SUPERSET
-  const editSuperset = async (index) => {
-    const superset = selectedExercises[index];
-
-    if (superset.type !== 'superset') return;
-
-    try {
-      const exercises = await db.getAllAsync('SELECT * FROM exercises ORDER BY muscle_group, name');
-
-      navigation.navigate('CreateSuperset', {
-        availableExercises: exercises,
-        existingSuperset: superset,
-        onCreateSuperset: (updatedSuperset) => {
-          const newList = [...selectedExercises];
-          newList[index] = updatedSuperset;
-          setSelectedExercises(newList);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-      });
-    } catch (error) {
-      console.error('Erreur chargement exercices:', error);
-    }
+  // ✅ CRÉER UN EXERCICE CHRONOMÉTRÉ
+  const handleCreateTimedExercise = () => {
+    navigation.navigate('CreateTimedExercise', {
+      onCreateTimedExercise: (timedData) => {
+        setSelectedExercises([...selectedExercises, timedData]);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    });
   };
-
-  // 🆕 FONCTION POUR MODIFIER UN DROP SET
-  const editDropset = async (index) => {
-    const dropset = selectedExercises[index];
-
-    if (dropset.type !== 'dropset') return;
-
-    try {
-      const exercises = await db.getAllAsync('SELECT * FROM exercises ORDER BY muscle_group, name');
-
-      navigation.navigate('CreateDropset', {
-        availableExercises: exercises,
-        existingDropset: dropset,
-        onCreateDropset: (updatedDropset) => {
-          const newList = [...selectedExercises];
-          newList[index] = updatedDropset;
-          setSelectedExercises(newList);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-      });
-    } catch (error) {
-      console.error('Erreur chargement exercices:', error);
-    }
-  };
-
-  const handleAddTimedExercise = async (timedExercise) => {
-    // Ajouter directement à la liste sans sauvegarder en BDD
-    setSelectedExercises([...selectedExercises, timedExercise]);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    console.log('✅ Exercice chronométré ajouté à la liste');
-  };
-
 
   const saveRoutine = async () => {
     if (!routineName.trim()) {
@@ -369,68 +247,45 @@ export default function EditRoutineScreen({ route, navigation }) {
     }
 
     try {
+      // Mettre à jour la routine
       await db.runAsync(
-        'UPDATE routines SET name = ?, type = ? WHERE id = ?',
-        [routineName.trim(), routineType, routineId]
+        'UPDATE routines SET name = ? WHERE id = ?',
+        [routineName.trim(), routineId]
       );
 
+      // Supprimer les anciens exercices
       await db.runAsync(
         'DELETE FROM routine_exercises WHERE routine_id = ?',
         [routineId]
       );
 
-      // 🆕 Ajouter les exercices (normaux, supersets ET drop sets)
+      // Ajouter les nouveaux exercices
       for (let i = 0; i < selectedExercises.length; i++) {
-        const item = selectedExercises[i];
+        const ex = selectedExercises[i];
+        console.log(`💾 Sauvegarde exercice ${i}:`, {
+          name: ex.name || ex.exercises?.[0]?.name,
+          type: ex.type,
+          id: ex.id,
+          hasId: !!ex.id
+        });
 
-        if (item.type === 'superset') {
-          // SUPERSET
-          const supersetData = JSON.stringify({
-            type: 'superset',
-            rounds: item.rounds,
-            rest_time: item.rest_time,
-            exercises: item.exercises
-          });
-
+        if (ex.type === 'superset' || ex.type === 'dropset' || ex.type === 'timed') {
+          // ✅ SAUVEGARDER EN JSON
           await db.runAsync(
             'INSERT INTO routine_exercises (routine_id, exercise_id, order_index, sets, rest_time, superset_data) VALUES (?, ?, ?, ?, ?, ?)',
-            [routineId, -1, i, item.rounds, item.rest_time, supersetData]
-          );
-        } else if (item.type === 'dropset') {
-          // 🆕 DROP SET
-          const dropsetData = JSON.stringify({
-            type: 'dropset',
-            exercise: item.exercise,
-            drops: item.drops,
-            rounds: item.rounds,
-            rest_time: item.rest_time
-          });
-
-          await db.runAsync(
-            'INSERT INTO routine_exercises (routine_id, exercise_id, order_index, sets, rest_time, superset_data) VALUES (?, ?, ?, ?, ?, ?)',
-            [routineId, -2, i, item.rounds, item.rest_time, dropsetData]
-          );
-        } else if (item.type === 'timed') {
-          // 🆕 EXERCICE CHRONOMÉTRÉ
-          const timedData = JSON.stringify({
-            type: 'timed',
-            mode: item.mode,
-            exercise: item.exercise,
-            duration: item.duration,
-            workDuration: item.workDuration,
-            restDuration: item.restDuration,
-            rounds: item.rounds
-          });
-
-          await db.runAsync(
-            'INSERT INTO routine_exercises (routine_id, exercise_id, order_index, sets, rest_time, superset_data) VALUES (?, ?, ?, ?, ?, ?)',
-            [routineId, -3, i, 1, 0, timedData]
+            [routineId, null, i, 0, 0, JSON.stringify(ex)]
           );
         } else {
-          // EXERCICE NORMAL
+          // ✅ EXERCICE NORMAL
+          // Vérifier que l'exercice a bien un ID
+          if (!ex.id) {
+            console.error('❌ Exercice sans ID:', ex);
+            continue; // Sauter cet exercice
+          }
+
           await db.runAsync(
             'INSERT INTO routine_exercises (routine_id, exercise_id, order_index, sets, rest_time) VALUES (?, ?, ?, ?, ?)',
-            [routineId, item.id, i, item.sets, item.rest_time]
+            [routineId, ex.id, i, ex.sets, ex.rest_time]
           );
         }
       }
@@ -492,6 +347,7 @@ export default function EditRoutineScreen({ route, navigation }) {
     setModalVisible(true);
   };
 
+  // Filtrer les exercices disponibles
   const filteredExercises = availableExercises.filter(ex => {
     const matchesSearch = ex.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesMuscle = muscleFilter === 'all' || ex.muscle_group === muscleFilter;
@@ -514,26 +370,6 @@ export default function EditRoutineScreen({ route, navigation }) {
             />
           </View>
 
-          {/* Type de routine */}
-          <View className="mb-6">
-            <Text className="text-white text-lg font-bold mb-3">TYPE DE ROUTINE</Text>
-            <View className="flex-row flex-wrap gap-2">
-              {routineTypes.map(type => (
-                <TouchableOpacity
-                  key={type.value}
-                  className={`px-4 py-2 rounded-xl ${routineType === type.value ? 'bg-accent-cyan' : 'bg-primary-navy'
-                    }`}
-                  onPress={() => setRoutineType(type.value)}
-                >
-                  <Text className={`font-semibold ${routineType === type.value ? 'text-primary-dark' : 'text-gray-400'
-                    }`}>
-                    {type.icon} {type.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
           {/* Exercices */}
           <View className="mb-6">
             <View className="flex-row items-center justify-between mb-3">
@@ -544,263 +380,114 @@ export default function EditRoutineScreen({ route, navigation }) {
             </View>
 
             {/* Liste des exercices ajoutés */}
-            {selectedExercises.map((item, index) => {
-              const isSuperset = item.type === 'superset';
-              const isDropset = item.type === 'dropset';
-              const isTimed = item.type === 'timed';
+            {selectedExercises.map((ex, index) => {
+              const isSuperset = ex.type === 'superset';
+              const isDropset = ex.type === 'dropset';
+              const isTimed = ex.type === 'timed';
 
               if (isTimed) {
-    // ⏱️ AFFICHAGE EXERCICE CHRONOMÉTRÉ
-    return (
-      <View
-        key={item.id || index}
-        className="rounded-xl p-4 mb-3 border-2 bg-purple-500/10 border-purple-500"
-      >
-        <View className="flex-row items-center justify-between mb-3">
-          <View className="flex-row items-center flex-1">
-            <View className="bg-purple-500 rounded-full p-2 mr-3">
-              <Ionicons name="timer" size={20} color="#0a0e27" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-purple-500 font-bold text-lg">
-                ⏱️ EXERCICE CHRONOMÉTRÉ {index + 1}
-              </Text>
-              <Text className="text-gray-400 text-sm">
-                {item.exercise.name} • {item.mode === 'simple' ? `${Math.floor(item.duration / 60)} min` : `${item.rounds} intervalles`}
-              </Text>
-            </View>
-          </View>
-
-          <View className="flex-row gap-2">
-            <TouchableOpacity
-              onPress={() => moveExercise(index, 'up')}
-              disabled={index === 0}
-            >
-              <Ionicons
-                name="chevron-up"
-                size={20}
-                color={index === 0 ? '#374151' : '#a855f7'}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => moveExercise(index, 'down')}
-              disabled={index === selectedExercises.length - 1}
-            >
-              <Ionicons
-                name="chevron-down"
-                size={20}
-                color={index === selectedExercises.length - 1 ? '#374151' : '#a855f7'}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => removeExercise(index)}>
-              <Ionicons name="trash" size={20} color="#ff4444" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View className="bg-primary-dark rounded-xl p-3">
-          {item.mode === 'simple' ? (
-            <Text className="text-white text-sm">
-              ⏱️ Durée : {Math.floor(item.duration / 60)} min
-            </Text>
-          ) : (
-            <>
-              <Text className="text-white text-sm">
-                💪 Travail : {item.workDuration}s
-              </Text>
-              <Text className="text-white text-sm">
-                😮‍💨 Repos : {item.restDuration}s
-              </Text>
-              <Text className="text-white text-sm">
-                🔁 Tours : {item.rounds}
-              </Text>
-            </>
-          )}
-        </View>
-
-        <View className="mt-3 pt-3 border-t border-purple-500/30">
-          <Text className="text-gray-400 text-xs text-center">
-            {item.mode === 'simple' ? '⏱️ Timer libre' : `🔥 ${item.rounds} intervalles`}
-          </Text>
-        </View>
-      </View>
-    );
-  } else if (isSuperset) {
-                // 🔥 AFFICHAGE SUPERSET
-                const supersetInfo = getSupersetInfo(item.exercises.length);
-
                 return (
-                  <View
-                    key={item.id || index}
-                    className={`rounded-xl p-4 mb-3 border-2 ${supersetInfo.bgColor}/10 ${supersetInfo.borderColor}`}
-                  >
-                    <View className="flex-row items-center justify-between mb-3">
+                  <View key={ex.id || index} className="bg-purple-500/10 rounded-xl p-4 mb-3 border border-purple-500/30">
+                    <View className="flex-row items-center justify-between mb-2">
                       <View className="flex-row items-center flex-1">
-                        <View className={`${supersetInfo.bgColor} rounded-full p-2 mr-3`}>
-                          <Ionicons name={supersetInfo.icon} size={20} color="#0a0e27" />
+                        <View className="bg-purple-500 rounded-full w-8 h-8 items-center justify-center mr-2">
+                          <Ionicons name="timer" size={16} color="#0a0e27" />
                         </View>
                         <View className="flex-1">
-                          <Text className={`${supersetInfo.textColor} font-bold text-lg`}>
-                            {supersetInfo.emoji} {supersetInfo.name} {index + 1}
-                          </Text>
-                          <Text className="text-gray-400 text-sm">
-                            {item.exercises.length} exercices • {item.rounds} tours
-                          </Text>
+                          <Text className="text-purple-500 text-xs font-bold">⏱️ CHRONOMÉTRÉ</Text>
+                          <Text className="text-white font-semibold">{ex.exercise.name}</Text>
                         </View>
                       </View>
-
                       <View className="flex-row gap-2">
-                        <TouchableOpacity
-                          onPress={() => moveExercise(index, 'up')}
-                          disabled={index === 0}
-                        >
-                          <Ionicons
-                            name="chevron-up"
-                            size={20}
-                            color={index === 0 ? '#374151' : supersetInfo.color}
-                          />
+                        <TouchableOpacity onPress={() => moveExercise(index, 'up')} disabled={index === 0}>
+                          <Ionicons name="chevron-up" size={20} color={index === 0 ? '#374151' : '#fff'} />
                         </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => moveExercise(index, 'down')}
-                          disabled={index === selectedExercises.length - 1}
-                        >
-                          <Ionicons
-                            name="chevron-down"
-                            size={20}
-                            color={index === selectedExercises.length - 1 ? '#374151' : supersetInfo.color}
-                          />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => editSuperset(index)}>
-                          <Ionicons name="create" size={20} color={supersetInfo.color} />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => dissociateSuperset(index)}>
-                          <Ionicons name="git-branch" size={20} color={supersetInfo.color} />
+                        <TouchableOpacity onPress={() => moveExercise(index, 'down')} disabled={index === selectedExercises.length - 1}>
+                          <Ionicons name="chevron-down" size={20} color={index === selectedExercises.length - 1 ? '#374151' : '#fff'} />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => removeExercise(index)}>
                           <Ionicons name="trash" size={20} color="#ff4444" />
                         </TouchableOpacity>
                       </View>
                     </View>
-
-                    <View className="bg-primary-dark rounded-xl p-3">
-                      {item.exercises.map((ex, exIndex) => (
-                        <View key={ex.id} className="flex-row items-center mb-2">
-                          <View className={`${supersetInfo.bgColor} rounded-full w-6 h-6 items-center justify-center mr-2`}>
-                            <Text className="text-primary-dark font-bold text-xs">
-                              {exIndex + 1}
-                            </Text>
-                          </View>
-                          <Text className="text-white text-sm flex-1">{ex.name}</Text>
+                    <Text className="text-gray-400 text-sm">
+                      {ex.mode === 'simple' ? `${Math.floor(ex.duration / 60)} min` : `${ex.rounds} × ${ex.workDuration}s/${ex.restDuration}s`}
+                    </Text>
+                  </View>
+                );
+              } else if (isSuperset) {
+                const supersetInfo = getSupersetInfo(ex.exercises.length);
+                return (
+                  <View key={ex.id || index} className={`${supersetInfo.bgColor}/10 rounded-xl p-4 mb-3 border ${supersetInfo.borderColor}`}>
+                    <View className="flex-row items-center justify-between mb-2">
+                      <View className="flex-row items-center flex-1">
+                        <View className={`${supersetInfo.bgColor} rounded-full w-8 h-8 items-center justify-center mr-2`}>
+                          <Ionicons name={supersetInfo.icon} size={16} color="#0a0e27" />
                         </View>
-                      ))}
+                        <View className="flex-1">
+                          <Text className={`${supersetInfo.textColor} text-xs font-bold`}>{supersetInfo.emoji} {supersetInfo.name.toUpperCase()}</Text>
+                          <Text className="text-white font-semibold" numberOfLines={1}>{ex.exercises.map(e => e.name).join(' + ')}</Text>
+                        </View>
+                      </View>
+                      <View className="flex-row gap-2">
+                        <TouchableOpacity onPress={() => moveExercise(index, 'up')} disabled={index === 0}>
+                          <Ionicons name="chevron-up" size={20} color={index === 0 ? '#374151' : '#fff'} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => moveExercise(index, 'down')} disabled={index === selectedExercises.length - 1}>
+                          <Ionicons name="chevron-down" size={20} color={index === selectedExercises.length - 1 ? '#374151' : '#fff'} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => removeExercise(index)}>
+                          <Ionicons name="trash" size={20} color="#ff4444" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
-
-                    <View className={`mt-3 pt-3 border-t ${supersetInfo.borderColor}/30`}>
-                      <Text className="text-gray-400 text-xs text-center">
-                        ⚡ Enchaînement direct • 💤 {Math.floor(item.rest_time / 60)}:{(item.rest_time % 60).toString().padStart(2, '0')} entre tours
-                      </Text>
-                    </View>
+                    <Text className="text-gray-400 text-sm">{ex.rounds} tours • {Math.floor(ex.rest_time / 60)}:{(ex.rest_time % 60).toString().padStart(2, '0')} repos</Text>
                   </View>
                 );
               } else if (isDropset) {
-                // 🔻 AFFICHAGE DROP SET
                 return (
-                  <View
-                    key={item.id || index}
-                    className="rounded-xl p-4 mb-3 border-2 bg-amber-500/10 border-amber-500"
-                  >
-                    <View className="flex-row items-center justify-between mb-3">
+                  <View key={ex.id || index} className="bg-amber-500/10 rounded-xl p-4 mb-3 border border-amber-500/30">
+                    <View className="flex-row items-center justify-between mb-2">
                       <View className="flex-row items-center flex-1">
-                        <View className="bg-amber-500 rounded-full p-2 mr-3">
-                          <Ionicons name="trending-down" size={20} color="#0a0e27" />
+                        <View className="bg-amber-500 rounded-full w-8 h-8 items-center justify-center mr-2">
+                          <Ionicons name="trending-down" size={16} color="#0a0e27" />
                         </View>
                         <View className="flex-1">
-                          <Text className="text-amber-500 font-bold text-lg">
-                            🔻 DROP SET {index + 1}
-                          </Text>
-                          <Text className="text-gray-400 text-sm">
-                            {item.exercise.name} • {item.drops} drops • {item.rounds} tours
-                          </Text>
+                          <Text className="text-amber-500 text-xs font-bold">🔻 DROP SET</Text>
+                          <Text className="text-white font-semibold">{ex.exercise.name}</Text>
                         </View>
                       </View>
-
                       <View className="flex-row gap-2">
-                        <TouchableOpacity
-                          onPress={() => moveExercise(index, 'up')}
-                          disabled={index === 0}
-                        >
-                          <Ionicons
-                            name="chevron-up"
-                            size={20}
-                            color={index === 0 ? '#374151' : '#f59e0b'}
-                          />
+                        <TouchableOpacity onPress={() => moveExercise(index, 'up')} disabled={index === 0}>
+                          <Ionicons name="chevron-up" size={20} color={index === 0 ? '#374151' : '#fff'} />
                         </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => moveExercise(index, 'down')}
-                          disabled={index === selectedExercises.length - 1}
-                        >
-                          <Ionicons
-                            name="chevron-down"
-                            size={20}
-                            color={index === selectedExercises.length - 1 ? '#374151' : '#f59e0b'}
-                          />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => editDropset(index)}>
-                          <Ionicons name="create" size={20} color="#f59e0b" />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => dissociateDropset(index)}>
-                          <Ionicons name="git-branch" size={20} color="#f59e0b" />
+                        <TouchableOpacity onPress={() => moveExercise(index, 'down')} disabled={index === selectedExercises.length - 1}>
+                          <Ionicons name="chevron-down" size={20} color={index === selectedExercises.length - 1 ? '#374151' : '#fff'} />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => removeExercise(index)}>
                           <Ionicons name="trash" size={20} color="#ff4444" />
                         </TouchableOpacity>
                       </View>
                     </View>
-
-                    <View className="bg-primary-dark rounded-xl p-3">
-                      <Text className="text-white font-semibold mb-1">
-                        {item.exercise.name}
-                      </Text>
-                      <Text className="text-gray-400 text-sm">
-                        {item.exercise.muscle_group} • {item.exercise.equipment}
-                      </Text>
-                    </View>
-
-                    <View className="mt-3 pt-3 border-t border-amber-500/30">
-                      <Text className="text-gray-400 text-xs text-center">
-                        ⚡ {item.drops} drops sans repos • 💤 {Math.floor(item.rest_time / 60)}:{(item.rest_time % 60).toString().padStart(2, '0')} entre tours
-                      </Text>
-                    </View>
+                    <Text className="text-gray-400 text-sm">{ex.drops} drops • {ex.rounds} tours • {Math.floor(ex.rest_time / 60)}:{(ex.rest_time % 60).toString().padStart(2, '0')} repos</Text>
                   </View>
                 );
               } else {
-                // ✅ AFFICHAGE EXERCICE NORMAL
                 return (
-                  <View key={index} className="bg-primary-navy rounded-xl p-4 mb-3">
+                  <View key={ex.id || index} className="bg-success/10 rounded-xl p-4 mb-3 border border-success/30">
                     <View className="flex-row items-center justify-between mb-2">
-                      <Text className="text-white font-semibold flex-1">
-                        {index + 1}. {item.name}
-                      </Text>
+                      <View className="flex-row items-center flex-1">
+                        <View className="bg-success rounded-full w-8 h-8 items-center justify-center mr-2">
+                          <Ionicons name="barbell" size={16} color="#0a0e27" />
+                        </View>
+                        <Text className="text-white font-semibold flex-1">{ex.name}</Text>
+                      </View>
                       <View className="flex-row gap-2">
-                        <TouchableOpacity
-                          onPress={() => moveExercise(index, 'up')}
-                          disabled={index === 0}
-                        >
-                          <Ionicons
-                            name="chevron-up"
-                            size={20}
-                            color={index === 0 ? '#374151' : '#fff'}
-                          />
+                        <TouchableOpacity onPress={() => moveExercise(index, 'up')} disabled={index === 0}>
+                          <Ionicons name="chevron-up" size={20} color={index === 0 ? '#374151' : '#fff'} />
                         </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => moveExercise(index, 'down')}
-                          disabled={index === selectedExercises.length - 1}
-                        >
-                          <Ionicons
-                            name="chevron-down"
-                            size={20}
-                            color={index === selectedExercises.length - 1 ? '#374151' : '#fff'}
-                          />
+                        <TouchableOpacity onPress={() => moveExercise(index, 'down')} disabled={index === selectedExercises.length - 1}>
+                          <Ionicons name="chevron-down" size={20} color={index === selectedExercises.length - 1 ? '#374151' : '#fff'} />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => editExercise(index)}>
                           <Ionicons name="create" size={20} color="#00f5ff" />
@@ -811,73 +498,46 @@ export default function EditRoutineScreen({ route, navigation }) {
                       </View>
                     </View>
                     <Text className="text-gray-400 text-sm">
-                      {item.sets} séries • {Math.floor(item.rest_time / 60)}:{(item.rest_time % 60).toString().padStart(2, '0')} repos
+                      {ex.sets} séries • {Math.floor(ex.rest_time / 60)}:{(ex.rest_time % 60).toString().padStart(2, '0')} repos
                     </Text>
                   </View>
                 );
               }
             })}
+            {/* Boutons ajouter */}
+            <View className="gap-2">
+              <TouchableOpacity
+                className="bg-success/10 border-2 border-dashed border-success/30 rounded-xl p-4 items-center"
+                onPress={openExercisePicker}
+              >
+                <Ionicons name="add-circle" size={24} color="#00ff88" />
+                <Text className="text-success mt-2">💪 Ajouter un exercice normal</Text>
+              </TouchableOpacity>
 
-            {/* Bouton ajouter exercice */}
-            <TouchableOpacity
-              className="bg-primary-navy border-2 border-dashed border-gray-600 rounded-xl p-4 items-center mb-3"
-              onPress={openExercisePicker}
-            >
-              <Ionicons name="add-circle" size={24} color="#00f5ff" />
-              <Text className="text-gray-400 mt-2">Ajouter un exercice</Text>
-            </TouchableOpacity>
-
-            {/* BOUTON CRÉER SUPERSET */}
-            <TouchableOpacity
-              className="bg-accent-cyan/10 border-2 border-dashed border-accent-cyan rounded-xl p-4 items-center mb-3"
-              onPress={openSupersetCreator}
-            >
-              <View className="flex-row items-center">
+              <TouchableOpacity
+                className="bg-accent-cyan/10 border-2 border-dashed border-accent-cyan/30 rounded-xl p-4 items-center"
+                onPress={handleCreateSuperset}
+              >
                 <Ionicons name="flash" size={24} color="#00f5ff" />
-                <Text className="text-accent-cyan font-bold ml-2">
-                  🔥 CRÉER UN SUPERSET
-                </Text>
-              </View>
-              <Text className="text-gray-400 text-xs mt-1">
-                Enchaîne 2+ exercices sans repos
-              </Text>
-            </TouchableOpacity>
+                <Text className="text-accent-cyan mt-2">⚡ Créer un Superset</Text>
+              </TouchableOpacity>
 
-            {/* 🆕 BOUTON CRÉER DROP SET */}
-            <TouchableOpacity
-              className="bg-amber-500/10 border-2 border-dashed border-amber-500 rounded-xl p-4 items-center"
-              onPress={openDropsetCreator}
-            >
-              <View className="flex-row items-center">
+              <TouchableOpacity
+                className="bg-amber-500/10 border-2 border-dashed border-amber-500/30 rounded-xl p-4 items-center"
+                onPress={handleCreateDropset}
+              >
                 <Ionicons name="trending-down" size={24} color="#f59e0b" />
-                <Text className="text-amber-500 font-bold ml-2">
-                  🔻 CRÉER UN DROP SET
-                </Text>
-              </View>
-              <Text className="text-gray-400 text-xs mt-1">
-                Poids dégressifs sur 1 exercice
-              </Text>
-            </TouchableOpacity>
-            {/* Bouton ajouter exercice chronométré */}
-            <TouchableOpacity
-              className="bg-accent-cyan/20 border-2 border-accent-cyan rounded-2xl p-4 mb-3"
-              onPress={async () => {
-                const exercises = await db.getAllAsync('SELECT * FROM exercises ORDER BY muscle_group, name');
-                navigation.navigate('CreateTimedExercise', {
-                  availableExercises: exercises,
-                  onCreateTimedExercise: (timedExercise) => {
-                    handleAddTimedExercise(timedExercise);
-                  }
-                });
-              }}
-            >
-              <View className="flex-row items-center justify-center">
-                <Ionicons name="timer-outline" size={24} color="#00f5ff" />
-                <Text className="text-accent-cyan font-bold text-lg ml-2">
-                  ⏱️ Ajouter exercice chronométré
-                </Text>
-              </View>
-            </TouchableOpacity>
+                <Text className="text-amber-500 mt-2">🔻 Créer un Drop Set</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className="bg-purple-500/10 border-2 border-dashed border-purple-500/30 rounded-xl p-4 items-center"
+                onPress={handleCreateTimedExercise}
+              >
+                <Ionicons name="timer" size={24} color="#a855f7" />
+                <Text className="text-purple-500 mt-2">⏱️ Créer un exercice chronométré</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Boutons */}
@@ -910,7 +570,7 @@ export default function EditRoutineScreen({ route, navigation }) {
         </View>
       </ScrollView>
 
-      {/* TOUS LES MODALS (ne pas modifier) */}
+      {/* Modal sélection exercice */}
       <Modal
         visible={showExercisePicker}
         animationType="slide"
@@ -937,6 +597,7 @@ export default function EditRoutineScreen({ route, navigation }) {
             </View>
           </View>
 
+          {/* Filtres avec PETITE taille */}
           <View style={{ backgroundColor: '#1a1f3a', paddingVertical: 8 }}>
             <ScrollView
               horizontal
@@ -986,7 +647,7 @@ export default function EditRoutineScreen({ route, navigation }) {
         </View>
       </Modal>
 
-      {/* Modal configuration nouvel exercice - INCHANGÉ */}
+      {/* Modal configuration nouvel exercice */}
       <Modal
         visible={showExerciseConfig}
         animationType="slide"
@@ -1130,7 +791,7 @@ export default function EditRoutineScreen({ route, navigation }) {
         </View>
       </Modal>
 
-      {/* Modal édition exercice existant - INCHANGÉ */}
+      {/* Modal édition exercice existant */}
       <Modal
         visible={editingExerciseIndex !== null}
         animationType="slide"

@@ -2,12 +2,25 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import CustomModal from '../components/CustomModal';
+import { useSession } from '../context/SessionContext';
+import SessionTimer from '../components/SessionTimer';
 
 export default function WarmupScreen({ route, navigation }) {
   const { routineId, warmupDuration, exercises } = route.params;
-  const [timeLeft, setTimeLeft] = useState(warmupDuration * 60); // Convertir en secondes
+  const [timeLeft, setTimeLeft] = useState(warmupDuration * 60);
   const [isPaused, setIsPaused] = useState(false);
+  const [totalSessionTime, setTotalSessionTime] = useState(0); // 🆕 TIMER INDÉPENDANT
+  const { startSession, formattedTime, endSession } = useSession();
 
+  // États pour le modal
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState({});
+
+  // 🆕 Ref pour stocker le unsubscribe
+  const [navigationListener, setNavigationListener] = useState(null);
+
+  // Timer
   useEffect(() => {
     if (isPaused || timeLeft <= 0) return;
 
@@ -27,11 +40,60 @@ export default function WarmupScreen({ route, navigation }) {
     return () => clearInterval(interval);
   }, [isPaused, timeLeft]);
 
+  useEffect(() => {
+    startSession(); // Démarrer le timer global
+  }, []);
+
+  // 🆕 BLOQUER LE RETOUR ARRIÈRE
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      // Empêcher la navigation par défaut
+      e.preventDefault();
+
+      // Afficher le modal de confirmation
+      setModalConfig({
+        title: '🚪 Quitter la séance ?',
+        message: 'Tu vas perdre ta progression d\'échauffement. Es-tu sûr de vouloir quitter ?',
+        icon: 'exit-outline',
+        iconColor: '#ff4444',
+        buttons: [
+          {
+            text: 'Continuer l\'échauffement',
+            style: 'primary',
+            onPress: () => {
+              // Ne rien faire, rester sur l'écran
+            }
+          },
+          {
+            text: 'Quitter',
+            style: 'destructive',
+            onPress: () => {
+              // Retirer le listener et naviguer
+              navigation.removeListener('beforeRemove', unsubscribe);
+              navigation.dispatch(e.data.action);
+            }
+          }
+        ]
+      });
+      setModalVisible(true);
+    });
+
+    // Stocker le unsubscribe pour pouvoir le retirer plus tard
+    setNavigationListener(() => unsubscribe);
+
+    return unsubscribe;
+  }, [navigation]);
+
   const finishWarmup = () => {
+    if (navigationListener) {
+      navigationListener();
+    }
+
     navigation.replace('WarmupTransition', {
       routineId,
       exercises,
-      warmupDuration
+      warmupDuration,
+      lastWorkoutDuration: route.params.lastWorkoutDuration || null  // 🆕
     });
   };
 
@@ -51,18 +113,62 @@ export default function WarmupScreen({ route, navigation }) {
     return (timeLeft / totalSeconds) * 100;
   };
 
+  // 🆕 FONCTION POUR QUITTER LA SÉANCE (BOUTON CROIX ROUGE)
+  const handleQuitSession = () => {
+    setModalConfig({
+      title: '🚪 Quitter la séance ?',
+      message: 'Tu vas perdre ta progression d\'échauffement. Es-tu sûr de vouloir quitter ?',
+      icon: 'exit-outline',
+      iconColor: '#ff4444',
+      buttons: [
+        {
+          text: 'Continuer l\'échauffement',
+          style: 'primary',
+          onPress: () => {
+            // Ne rien faire
+          }
+        },
+        {
+          text: 'Quitter',
+          style: 'destructive',
+          onPress: () => {
+            // 🆕 RETIRER LE LISTENER AVANT DE NAVIGUER
+            if (navigationListener) {
+              navigationListener();
+            }
+            endSession();
+            // Naviguer vers l'accueil
+            navigation.navigate('TrainingHome');
+          }
+        }
+      ]
+    });
+    setModalVisible(true);
+  };
+
   return (
     <View className="flex-1 bg-primary-dark">
+      <SessionTimer />
+      {/* 🆕 BOUTON QUITTER EN HAUT À DROITE */}
+      <View className="absolute top-4 right-4 z-50">
+        <TouchableOpacity
+          className="bg-danger/20 rounded-full p-2"
+          onPress={handleQuitSession}
+        >
+          <Ionicons name="close" size={24} color="#ff4444" />
+        </TouchableOpacity>
+      </View>
+
       <View className="flex-1 items-center justify-center p-6">
         {/* Timer */}
         <View className="items-center mb-8">
           <Text className="text-danger text-6xl font-bold mb-2">
             {formatTime(timeLeft)}
           </Text>
-          
+
           {/* Barre de progression */}
           <View className="w-64 h-2 bg-primary-navy rounded-full overflow-hidden mt-4">
-            <View 
+            <View
               className="h-full bg-danger rounded-full"
               style={{ width: `${getProgress()}%` }}
             />
@@ -72,7 +178,7 @@ export default function WarmupScreen({ route, navigation }) {
         {/* Instructions */}
         <View className="bg-primary-navy rounded-2xl p-6 mb-8">
           <View className="flex-row items-center mb-3">
-            <Ionicons name="flame" size={24} color="#ff6b35" />
+            <Ionicons name="flame" size={20} color="#ff6b35" />
             <Text className="text-white text-xl font-bold ml-2">
               Échauffement en cours
             </Text>
@@ -125,15 +231,12 @@ export default function WarmupScreen({ route, navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Timer séance global */}
-      <View className="bg-primary-navy p-4 border-t border-accent-cyan/20">
-        <View className="flex-row items-center justify-center">
-          <Ionicons name="time-outline" size={20} color="#6b7280" />
-          <Text className="text-gray-400 ml-2">
-            Temps total séance : {formatTime((warmupDuration * 60) - timeLeft)}
-          </Text>
-        </View>
-      </View>
+      {/* 🆕 MODAL DE CONFIRMATION */}
+      <CustomModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        {...modalConfig}
+      />
     </View>
   );
 }

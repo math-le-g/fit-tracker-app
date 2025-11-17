@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { getSupersetInfo } from '../utils/supersetHelpers';
 import { db } from '../database/database';
 
+
 export default function ExerciseTransitionScreen({
   completedExercise,
   completedSets,
@@ -19,7 +20,8 @@ export default function ExerciseTransitionScreen({
   onUpdateExercises,
   onQuitSession,
   isSuperset = false,
-  isDropset = false
+  isDropset = false,
+  isTimed = false // 🆕
 }) {
 
   const [showReplacementMenu, setShowReplacementMenu] = useState(false);
@@ -41,7 +43,7 @@ export default function ExerciseTransitionScreen({
   const handleReplaceWithSimple = () => {
     setShowReplacementMenu(false);
     navigation.push('SelectReplacementExercise', {
-      currentExercise: nextExercise.type === 'dropset' ? nextExercise.exercise : nextExercise,
+      currentExercise: nextExercise.type === 'dropset' ? nextExercise.exercise : nextExercise.type === 'timed' ? nextExercise.exercise : nextExercise,
       onReplace: (newExercise) => {
         const newList = [...exercisesList];
         newList[exerciseNumber] = {
@@ -105,7 +107,10 @@ export default function ExerciseTransitionScreen({
   };
 
   const getTotalVolume = () => {
-    if (isSuperset) {
+    if (isTimed) {
+      // Pour les exercices chronométrés, pas de volume
+      return 0;
+    } else if (isSuperset) {
       // Pour les supersets, completedSets est un objet
       let total = 0;
       Object.values(completedSets || {}).forEach(exerciseSets => {
@@ -147,39 +152,88 @@ export default function ExerciseTransitionScreen({
 
           {/* Exercice terminé */}
           <View className="items-center mb-6">
-            <View className={`rounded-full p-6 mb-4 ${isSuperset && supersetInfo ? `${supersetInfo.bgColor}/20` : isDropset ? 'bg-amber-500/20' : 'bg-success/20'}`}>
+            <View className={`rounded-full p-6 mb-4 ${
+              isTimed 
+                ? 'bg-purple-500/20' 
+                : isSuperset && supersetInfo 
+                  ? `${supersetInfo.bgColor}/20` 
+                  : isDropset 
+                    ? 'bg-amber-500/20' 
+                    : 'bg-success/20'
+            }`}>
               <Ionicons
                 name="checkmark-circle"
                 size={64}
-                color={isSuperset && supersetInfo ? supersetInfo.color : isDropset ? "#f59e0b" : "#00ff88"}
+                color={
+                  isTimed 
+                    ? "#a855f7" 
+                    : isSuperset && supersetInfo 
+                      ? supersetInfo.color 
+                      : isDropset 
+                        ? "#f59e0b" 
+                        : "#00ff88"
+                }
               />
             </View>
             <Text className="text-white text-2xl font-bold mb-2">
-              {isSuperset && supersetInfo
-                ? `${supersetInfo.emoji} ${supersetInfo.name} TERMINÉ !`
-                : isDropset
-                  ? '🔻 DROP SET TERMINÉ !'
-                  : '✅ EXERCICE TERMINÉ !'
+              {isTimed
+                ? '⏱️ CHRONO TERMINÉ !'
+                : isSuperset && supersetInfo
+                  ? `${supersetInfo.emoji} ${supersetInfo.name} TERMINÉ !`
+                  : isDropset
+                    ? '🔻 DROP SET TERMINÉ !'
+                    : '✅ EXERCICE TERMINÉ !'
               }
             </Text>
             <Text className="text-gray-400 text-lg">
-              {isSuperset
-                ? `${supersetInfo?.name || 'Superset'} ${exerciseNumber}`
-                : isDropset
-                  ? completedExercise.exercise?.name || 'Drop Set'
-                  : completedExercise.name || 'Exercice'
+              {isTimed
+                ? completedExercise.exercise?.name || 'Exercice chronométré'
+                : isSuperset
+                  ? `${supersetInfo?.name || 'Superset'} ${exerciseNumber}`
+                  : isDropset
+                    ? completedExercise.exercise?.name || 'Drop Set'
+                    : completedExercise.name || 'Exercice'
               }
             </Text>
           </View>
 
           {/* Récap exercice */}
-          <View className={`rounded-2xl p-6 mb-4 ${isSuperset && supersetInfo ? `${supersetInfo.bgColor}/10 border ${supersetInfo.borderColor}` : isDropset ? 'bg-amber-500/10 border border-amber-500' : 'bg-primary-navy'}`}>
+          <View className={`rounded-2xl p-6 mb-4 ${
+            isTimed
+              ? 'bg-purple-500/10 border border-purple-500'
+              : isSuperset && supersetInfo 
+                ? `${supersetInfo.bgColor}/10 border ${supersetInfo.borderColor}` 
+                : isDropset 
+                  ? 'bg-amber-500/10 border border-amber-500' 
+                  : 'bg-primary-navy'
+          }`}>
             <Text className="text-white text-lg font-bold mb-3">
               📊 Performance
             </Text>
 
             {/* AFFICHAGE DIFFÉRENT SELON LE TYPE */}
-            {isSuperset ? (
+            {isTimed ? (
+              // ⏱️ EXERCICE CHRONOMÉTRÉ
+              <View>
+                <View className="flex-row items-center justify-between mb-3">
+                  <View className="flex-row items-center">
+                    <Ionicons name="timer" size={20} color="#a855f7" />
+                    <Text className="text-gray-400 ml-2">Durée effectuée :</Text>
+                  </View>
+                  <Text className="text-purple-500 font-bold text-xl">
+                    {completedSets ? `${Math.floor(completedSets / 60)}:${(completedSets % 60).toString().padStart(2, '0')}` : '0:00'}
+                  </Text>
+                </View>
+                <View className="bg-purple-500/20 rounded-xl p-3 border border-purple-500/30">
+                  <Text className="text-purple-500 text-sm text-center font-semibold">
+                    {completedExercise.mode === 'simple' 
+                      ? '⏱️ Timer libre complété'
+                      : `🔥 ${completedExercise.rounds} intervalles complétés`
+                    }
+                  </Text>
+                </View>
+              </View>
+            ) : isSuperset ? (
               // SUPERSET/TRISET/GIANT SET
               <>
                 {completedExercise.exercises?.map((exercise, exIndex) => {
@@ -250,14 +304,22 @@ export default function ExerciseTransitionScreen({
               </>
             )}
 
-            <View className="mt-3 pt-3 border-t border-primary-dark">
-              <View className="flex-row justify-between">
-                <Text className="text-gray-400">Volume total</Text>
-                <Text className={`font-bold ${isSuperset && supersetInfo ? supersetInfo.textColor : isDropset ? 'text-amber-500' : 'text-success'}`}>
-                  {getTotalVolume()} kg
-                </Text>
+            {!isTimed && (
+              <View className="mt-3 pt-3 border-t border-primary-dark">
+                <View className="flex-row justify-between">
+                  <Text className="text-gray-400">Volume total</Text>
+                  <Text className={`font-bold ${
+                    isSuperset && supersetInfo 
+                      ? supersetInfo.textColor 
+                      : isDropset 
+                        ? 'text-amber-500' 
+                        : 'text-success'
+                  }`}>
+                    {getTotalVolume()} kg
+                  </Text>
+                </View>
               </View>
-            </View>
+            )}
           </View>
 
           {/* Message transition */}
@@ -302,7 +364,17 @@ export default function ExerciseTransitionScreen({
                   </Text>
 
                   {/* AFFICHAGE ADAPTÉ SELON LE TYPE */}
-                  {nextExercise.type === 'dropset' ? (
+                  {nextExercise.type === 'timed' ? (
+                    // ⏱️ EXERCICE CHRONOMÉTRÉ
+                    <>
+                      <Text className="text-purple-500 text-lg font-bold">
+                        ⏱️ EXERCICE CHRONOMÉTRÉ
+                      </Text>
+                      <Text className="text-white text-xl font-bold">
+                        {nextExercise.exercise?.name}
+                      </Text>
+                    </>
+                  ) : nextExercise.type === 'dropset' ? (
                     <>
                       <Text className="text-amber-500 text-lg font-bold">
                         🔻 DROP SET
@@ -330,11 +402,15 @@ export default function ExerciseTransitionScreen({
                   )}
 
                   <Text className="text-gray-400 text-sm mt-1">
-                    {nextExercise.type === 'superset'
-                      ? `${nextExercise.exercises?.length} exercices • ${nextExercise.rounds} tours`
-                      : nextExercise.type === 'dropset'
-                        ? `${nextExercise.drops} drops • ${nextExercise.rounds} tours`
-                        : `${nextExercise.sets} séries • ${nextExercise.rest_time}s repos`
+                    {nextExercise.type === 'timed'
+                      ? nextExercise.mode === 'simple'
+                        ? `⏱️ ${Math.floor(nextExercise.duration / 60)} min`
+                        : `🔥 ${nextExercise.rounds} intervalles (${nextExercise.workDuration}s / ${nextExercise.restDuration}s)`
+                      : nextExercise.type === 'superset'
+                        ? `${nextExercise.exercises?.length} exercices • ${nextExercise.rounds} tours`
+                        : nextExercise.type === 'dropset'
+                          ? `${nextExercise.drops} drops • ${nextExercise.rounds} tours`
+                          : `${nextExercise.sets} séries • ${nextExercise.rest_time}s repos`
                     }
                   </Text>
                 </View>
@@ -366,13 +442,6 @@ export default function ExerciseTransitionScreen({
               </TouchableOpacity>
             </View>
           )}
-
-          {/* Timer séance */}
-          <View className="items-center mt-4 mb-6">
-            <Text className="text-gray-400 text-center">
-              ⏱️ Temps total : {formatTime(elapsedTime)}
-            </Text>
-          </View>
         </View>
       </ScrollView>
 

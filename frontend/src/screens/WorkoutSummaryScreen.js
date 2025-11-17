@@ -66,9 +66,20 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
     const grouped = {};
     const supersets = {};
     const dropsets = {};
+    const timed = {}; // 🆕
 
     workoutDetails.forEach(detail => {
-      if (detail.dropset_id) {
+      // 🆕 DÉTECTER LES EXERCICES CHRONOMÉTRÉS (weight=0 et pas de superset/dropset)
+      if (detail.weight === 0 && !detail.superset_id && !detail.dropset_id) {
+        // C'EST UN EXERCICE CHRONOMÉTRÉ
+        if (!timed[detail.name]) {
+          timed[detail.name] = {
+            isTimed: true,
+            exerciseName: detail.name,
+            duration: detail.reps // La durée est stockée dans reps
+          };
+        }
+      } else if (detail.dropset_id) {
         // 🔻 C'EST UN DROP SET
         if (!dropsets[detail.dropset_id]) {
           dropsets[detail.dropset_id] = {
@@ -99,7 +110,7 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
       }
     });
 
-    return { normal: grouped, supersets: supersets, dropsets: dropsets };
+    return { normal: grouped, supersets: supersets, dropsets: dropsets, timed: timed };
   };
 
   const checkBadges = async () => {
@@ -251,7 +262,7 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
           </Text>
 
           {(() => {
-            const { normal, supersets, dropsets } = groupByExercise();
+            const { normal, supersets, dropsets, timed } = groupByExercise();
             const allItems = [];
 
             // Ajouter les exercices normaux
@@ -264,18 +275,66 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
               allItems.push({ type: 'superset', id: supersetId, data: supersetData });
             });
 
-            // 🆕 Ajouter les drop sets
+            // Ajouter les drop sets
             Object.entries(dropsets).forEach(([dropsetId, dropsetData]) => {
               allItems.push({ type: 'dropset', id: dropsetId, data: dropsetData });
             });
 
+            // 🆕 Ajouter les exercices chronométrés
+            Object.entries(timed).forEach(([exerciseName, timedData]) => {
+              allItems.push({ type: 'timed', name: exerciseName, data: timedData });
+            });
+
             return allItems.map((item, index) => {
-              if (item.type === 'dropset') {
+              if (item.type === 'timed') {
+                // ⏱️ AFFICHAGE EXERCICE CHRONOMÉTRÉ
+                return (
+                  <View
+                    key={`timed_${index}`}
+                    className={`py-3 mb-3 ${index < allItems.length - 1 ? 'border-b border-primary-dark' : ''}`}
+                  >
+                    <View className="bg-purple-500/10 rounded-2xl p-4 border border-purple-500/30">
+                      <View className="flex-row items-center mb-3">
+                        <View className="bg-purple-500 rounded-full w-10 h-10 items-center justify-center mr-3">
+                          <Ionicons name="timer" size={20} color="#0a0e27" />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-purple-500 text-xs font-bold mb-1">
+                            ⏱️ EXERCICE CHRONOMÉTRÉ
+                          </Text>
+                          <Text className="text-white font-bold text-lg">
+                            {item.name}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Durée effectuée */}
+                      <View className="bg-primary-dark rounded-xl p-3">
+                        <View className="flex-row items-center justify-between">
+                          <View className="flex-row items-center">
+                            <Ionicons name="time" size={16} color="#a855f7" />
+                            <Text className="text-gray-400 text-sm ml-2">Durée effectuée :</Text>
+                          </View>
+                          <Text className="text-white font-bold">
+                            {Math.floor(item.data.duration / 60)}:{(item.data.duration % 60).toString().padStart(2, '0')}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Badge */}
+                      <View className="bg-purple-500/20 rounded-xl p-2 border border-purple-500/30 mt-3">
+                        <Text className="text-purple-500 text-xs text-center font-semibold">
+                          ⏱️ Timer complété
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              } else if (item.type === 'dropset') {
                 // 🔻 AFFICHAGE DROP SET
                 const sets = item.data.sets;
 
-                // 🆕 DÉTECTER LE NOMBRE DE DROPS PAR TOUR
-                // Essayer de deviner en testant 2, 3, ou 4 drops
+                // DÉTECTER LE NOMBRE DE DROPS PAR TOUR
                 let dropsPerRound = 2; // Par défaut
                 for (let d = 2; d <= 4; d++) {
                   if (sets.length % d === 0) {
@@ -284,7 +343,7 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
                   }
                 }
 
-                // 🆕 GROUPER PAR TOUR
+                // GROUPER PAR TOUR
                 const roundsMap = {};
                 sets.forEach(set => {
                   const roundNum = Math.ceil(set.set_number / dropsPerRound);
@@ -336,7 +395,7 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
                   </View>
                 );
               } else if (item.type === 'superset') {
-                // 🔥 AFFICHAGE SUPERSET (inchangé)
+                // 🔥 AFFICHAGE SUPERSET
                 const exerciseCount = Object.keys(item.data.exercises).length;
                 const supersetInfo = getSupersetInfo(exerciseCount);
 
@@ -371,7 +430,7 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
                   </View>
                 );
               } else {
-                // ✅ AFFICHAGE EXERCICE NORMAL - NOUVEAU DESIGN
+                // ✅ AFFICHAGE EXERCICE NORMAL
                 return (
                   <View
                     key={index}

@@ -261,65 +261,95 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
             return (
               <View
                 key={`${ex.id}-${index}`}
-                className={`rounded-2xl p-4 mb-3 ${isDone
-                    ? 'bg-success/10 border border-success/30'
-                    : isCurrent
-                      ? isSuperset
-                        ? `${supersetInfo.bgColor}/10 border ${supersetInfo.borderColor}`
-                        : 'bg-accent-cyan/10 border border-accent-cyan'
-                      : isSuperset
-                        ? `${supersetInfo.bgColor}/5 border ${supersetInfo.borderColor}/30`
-                        : 'bg-primary-navy'
+                className={`rounded-2xl p-4 mb-3 ${isSuperset
+                    ? `${supersetInfo.bgColor}/${isDone ? '20' : isCurrent ? '10' : '5'} border ${supersetInfo.borderColor}${isDone || isCurrent ? '' : '/30'}`
+                    : ex.type === 'dropset'
+                      ? `bg-amber-500/${isDone ? '20' : isCurrent ? '10' : '5'} border border-amber-500${isDone || isCurrent ? '' : '/30'}`
+                      : ex.type === 'timed'
+                        ? `bg-purple-500/${isDone ? '20' : isCurrent ? '10' : '5'} border border-purple-500${isDone || isCurrent ? '' : '/30'}`
+                        : `bg-success/${isDone ? '20' : isCurrent ? '10' : '5'} border border-success${isDone || isCurrent ? '' : '/30'}`
                   }`}
               >
-                {/* En-tête */}
+                {/* En-tête avec style uniforme */}
                 <View className="flex-row items-center justify-between mb-2">
-                  <View className="flex-1">
-                    <View className="flex-row items-center">
-                      {isDone && (
-                        <Ionicons name="checkmark-circle" size={20} color="#00ff88" style={{ marginRight: 8 }} />
-                      )}
-                      {isCurrent && !isSuperset && (
-                        <Ionicons name="play-circle" size={20} color="#00f5ff" style={{ marginRight: 8 }} />
-                      )}
-                      {isCurrent && isSuperset && (
-                        <Ionicons name={supersetInfo.icon} size={20} color={supersetInfo.color} style={{ marginRight: 8 }} />
-                      )}
-
-                      {/* 🆕 AFFICHAGE SELON LE TYPE */}
-                      {isSuperset ? (
-                        <Text className={`font-bold ${isDone ? 'text-success' : isCurrent ? supersetInfo.textColor : 'text-white'
-                          }`}>
-                          {index + 1}. {supersetInfo.emoji} {supersetInfo.name}
-                        </Text>
-                      ) : (
-                        <Text className={`font-bold ${isDone ? 'text-success' : isCurrent ? 'text-accent-cyan' : 'text-white'
-                          }`}>
-                          {index + 1}. {ex.name}
-                        </Text>
-                      )}
-                    </View>
-
-                    {/* 🆕 INFO SELON LE TYPE */}
+                  <View className="flex-row items-center flex-1">
+                    {/* ICÔNE DANS CERCLE COLORÉ - GARDER LA COULEUR DU TYPE */}
                     {isSuperset ? (
-                      <>
-                        <Text className="text-gray-400 text-sm">
-                          {ex.exercises.length} exercices • {ex.rounds} tours • {Math.floor(ex.rest_time / 60)}:{(ex.rest_time % 60).toString().padStart(2, '0')} repos
-                        </Text>
-                        {/* Liste des exercices du superset */}
-                        <View className="mt-2 ml-4">
-                          {ex.exercises.map((exercise, exIndex) => (
-                            <Text key={exercise.id} className="text-gray-400 text-xs">
-                              • {exercise.name}
-                            </Text>
-                          ))}
-                        </View>
-                      </>
+                      <View className={`${supersetInfo.bgColor} rounded-full w-10 h-10 items-center justify-center mr-3`}>
+                        <Ionicons
+                          name={isDone ? "checkmark-circle" : supersetInfo.icon}
+                          size={24}
+                          color="#0a0e27"
+                        />
+                      </View>
+                    ) : ex.type === 'dropset' ? (
+                      <View className="bg-amber-500 rounded-full w-10 h-10 items-center justify-center mr-3">
+                        <Ionicons
+                          name={isDone ? "checkmark-circle" : "trending-down"}
+                          size={24}
+                          color="#0a0e27"
+                        />
+                      </View>
+                    ) : ex.type === 'timed' ? (
+                      <View className="bg-purple-500 rounded-full w-10 h-10 items-center justify-center mr-3">
+                        <Ionicons
+                          name={isDone ? "checkmark-circle" : "timer"}
+                          size={24}
+                          color="#0a0e27"
+                        />
+                      </View>
                     ) : (
-                      <Text className="text-gray-400 text-sm">
-                        {ex.sets} séries • {Math.floor(ex.rest_time / 60)}:{(ex.rest_time % 60).toString().padStart(2, '0')} repos
-                      </Text>
+                      <View className="bg-success rounded-full w-10 h-10 items-center justify-center mr-3">
+                        <Ionicons
+                          name={isDone ? "checkmark-circle" : "barbell"}
+                          size={24}
+                          color="#0a0e27"
+                        />
+                      </View>
                     )}
+
+                    {/* TEXTE */}
+                    <View className="flex-1">
+                      <Text className={`text-xs font-bold mb-1 ${isDone ? 'text-success'
+                        : isSuperset ? supersetInfo.textColor
+                          : ex.type === 'dropset' ? 'text-amber-500'
+                            : ex.type === 'timed' ? 'text-purple-500'
+                              : 'text-success'
+                        }`}>
+                        {isSuperset
+                          ? `${supersetInfo.emoji} ${supersetInfo.name.toUpperCase()} ${index + 1}`
+                          : ex.type === 'dropset'
+                            ? `🔻 DROP SET ${index + 1}`
+                            : ex.type === 'timed'
+                              ? `⏱️ CHRONOMÉTRÉ ${index + 1}`
+                              : `💪 EXERCICE ${index + 1}`
+                        }
+                      </Text>
+
+                      <Text className="text-white font-bold text-base">
+                        {isSuperset
+                          ? ex.exercises.map(e => e.name).join(' + ')
+                          : ex.type === 'dropset'
+                            ? ex.exercise?.name || 'Drop Set'
+                            : ex.type === 'timed'
+                              ? ex.exercise?.name || 'Chronométré'
+                              : ex.name || 'Exercice'
+                        }
+                      </Text>
+
+                      <Text className="text-gray-400 text-xs mt-1">
+                        {isSuperset
+                          ? `${ex.exercises.length} exercices • ${ex.rounds} tours • ${Math.floor(ex.rest_time / 60)}:${(ex.rest_time % 60).toString().padStart(2, '0')} repos`
+                          : ex.type === 'dropset'
+                            ? `${ex.drops || 0} drops • ${ex.rounds || 0} tours • ${Math.floor((ex.rest_time || 0) / 60)}:${((ex.rest_time || 0) % 60).toString().padStart(2, '0')} repos`
+                            : ex.type === 'timed'
+                              ? ex.mode === 'simple'
+                                ? `⏱️ ${Math.floor((ex.duration || 0) / 60)} min`
+                                : `🔥 ${ex.rounds || 0} intervalles (${ex.workDuration || 0}s / ${ex.restDuration || 0}s)`
+                              : `${ex.sets || 0} séries • ${Math.floor((ex.rest_time || 0) / 60)}:${((ex.rest_time || 0) % 60).toString().padStart(2, '0')} repos`
+                        }
+                      </Text>
+                    </View>
                   </View>
 
                   {canModify && (

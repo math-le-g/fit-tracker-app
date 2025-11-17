@@ -26,7 +26,7 @@ export default function CreateRoutineScreen({ navigation }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState({});
 
-  const muscleGroups = ['all', 'Pectoraux', 'Dos', 'Épaules', 'Biceps', 'Triceps', 'Abdominaux', 'Jambes'];
+  const muscleGroups = ['all', 'Pectoraux', 'Dos', 'Épaules', 'Biceps', 'Triceps', 'Abdominaux', 'Jambes', 'Cardio'];
 
   const loadAvailableExercises = async () => {
     try {
@@ -101,7 +101,7 @@ export default function CreateRoutineScreen({ navigation }) {
     }
   };
 
-  // 🆕 FONCTION POUR OUVRIR LE CRÉATEUR DE DROP SET
+  // FONCTION POUR OUVRIR LE CRÉATEUR DE DROP SET
   const openDropsetCreator = async () => {
     try {
       const exercises = await db.getAllAsync('SELECT * FROM exercises ORDER BY muscle_group, name');
@@ -110,6 +110,23 @@ export default function CreateRoutineScreen({ navigation }) {
         availableExercises: exercises,
         onCreateDropset: (dropset) => {
           setSelectedExercises([...selectedExercises, dropset]);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+      });
+    } catch (error) {
+      console.error('Erreur chargement exercices:', error);
+    }
+  };
+
+  // 🆕 FONCTION POUR OUVRIR LE CRÉATEUR D'EXERCICE CHRONOMÉTRÉ
+  const openTimedExerciseCreator = async () => {
+    try {
+      const exercises = await db.getAllAsync('SELECT * FROM exercises ORDER BY muscle_group, name');
+
+      navigation.navigate('CreateTimedExercise', {
+        availableExercises: exercises,
+        onCreateTimedExercise: (timedExercise) => {
+          setSelectedExercises([...selectedExercises, timedExercise]);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
       });
@@ -152,7 +169,7 @@ export default function CreateRoutineScreen({ navigation }) {
     setModalVisible(true);
   };
 
-  // 🆕 FONCTION POUR DISSOCIER UN DROP SET
+  // FONCTION POUR DISSOCIER UN DROP SET
   const dissociateDropset = (index) => {
     const dropset = selectedExercises[index];
 
@@ -219,7 +236,7 @@ export default function CreateRoutineScreen({ navigation }) {
 
       const routineId = result.lastInsertRowId;
 
-      // 🆕 Ajouter les exercices (normaux, supersets ET drop sets)
+      // 🆕 Ajouter les exercices (normaux, supersets, drop sets ET chronométrés)
       for (let i = 0; i < selectedExercises.length; i++) {
         const item = selectedExercises[i];
 
@@ -237,7 +254,7 @@ export default function CreateRoutineScreen({ navigation }) {
             [routineId, -1, i, item.rounds, item.rest_time, supersetData]
           );
         } else if (item.type === 'dropset') {
-          // 🆕 DROP SET
+          // DROP SET
           const dropsetData = JSON.stringify({
             type: 'dropset',
             exercise: item.exercise,
@@ -249,6 +266,22 @@ export default function CreateRoutineScreen({ navigation }) {
           await db.runAsync(
             'INSERT INTO routine_exercises (routine_id, exercise_id, order_index, sets, rest_time, superset_data) VALUES (?, ?, ?, ?, ?, ?)',
             [routineId, -2, i, item.rounds, item.rest_time, dropsetData]
+          );
+        } else if (item.type === 'timed') {
+          // 🆕 EXERCICE CHRONOMÉTRÉ
+          const timedData = JSON.stringify({
+            type: 'timed',
+            mode: item.mode,
+            exercise: item.exercise,
+            duration: item.duration,
+            workDuration: item.workDuration,
+            restDuration: item.restDuration,
+            rounds: item.rounds
+          });
+
+          await db.runAsync(
+            'INSERT INTO routine_exercises (routine_id, exercise_id, order_index, sets, rest_time, superset_data) VALUES (?, ?, ?, ?, ?, ?)',
+            [routineId, -3, i, 1, 0, timedData]
           );
         } else {
           // EXERCICE NORMAL
@@ -323,8 +356,85 @@ export default function CreateRoutineScreen({ navigation }) {
             {selectedExercises.map((item, index) => {
               const isSuperset = item.type === 'superset';
               const isDropset = item.type === 'dropset';
+              const isTimed = item.type === 'timed'; // 🆕
 
-              if (isSuperset) {
+              if (isTimed) {
+                // ⏱️ AFFICHAGE EXERCICE CHRONOMÉTRÉ
+                return (
+                  <View
+                    key={item.id || index}
+                    className="rounded-xl p-4 mb-3 border-2 bg-purple-500/10 border-purple-500"
+                  >
+                    <View className="flex-row items-center justify-between mb-3">
+                      <View className="flex-row items-center flex-1">
+                        <View className="bg-purple-500 rounded-full p-2 mr-3">
+                          <Ionicons name="timer" size={20} color="#0a0e27" />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-purple-500 font-bold text-lg">
+                            ⏱️ EXERCICE CHRONOMÉTRÉ {index + 1}
+                          </Text>
+                          <Text className="text-gray-400 text-sm">
+                            {item.exercise.name} • {item.mode === 'simple' ? `${Math.floor(item.duration / 60)} min` : `${item.rounds} intervalles`}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View className="flex-row gap-2">
+                        <TouchableOpacity
+                          onPress={() => moveExercise(index, 'up')}
+                          disabled={index === 0}
+                        >
+                          <Ionicons
+                            name="chevron-up"
+                            size={20}
+                            color={index === 0 ? '#374151' : '#a855f7'}
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => moveExercise(index, 'down')}
+                          disabled={index === selectedExercises.length - 1}
+                        >
+                          <Ionicons
+                            name="chevron-down"
+                            size={20}
+                            color={index === selectedExercises.length - 1 ? '#374151' : '#a855f7'}
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => removeExercise(index)}>
+                          <Ionicons name="trash" size={20} color="#ff4444" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    <View className="bg-primary-dark rounded-xl p-3">
+                      {item.mode === 'simple' ? (
+                        <Text className="text-white text-sm">
+                          ⏱️ Durée : {Math.floor(item.duration / 60)} min
+                        </Text>
+                      ) : (
+                        <>
+                          <Text className="text-white text-sm">
+                            💪 Travail : {item.workDuration}s
+                          </Text>
+                          <Text className="text-white text-sm">
+                            😮‍💨 Repos : {item.restDuration}s
+                          </Text>
+                          <Text className="text-white text-sm">
+                            🔁 Tours : {item.rounds}
+                          </Text>
+                        </>
+                      )}
+                    </View>
+
+                    <View className="mt-3 pt-3 border-t border-purple-500/30">
+                      <Text className="text-gray-400 text-xs text-center">
+                        {item.mode === 'simple' ? '⏱️ Timer libre' : `🔥 ${item.rounds} intervalles`}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              } else if (isSuperset) {
                 // 🔥 AFFICHAGE SUPERSET
                 const supersetInfo = getSupersetInfo(item.exercises.length);
 
@@ -502,13 +612,20 @@ export default function CreateRoutineScreen({ navigation }) {
               }
             })}
 
-            {/* Bouton ajouter exercice */}
+            {/* 🆕 BOUTON AJOUTER EXERCICE - STYLE COHÉRENT */}
             <TouchableOpacity
-              className="bg-primary-navy border-2 border-dashed border-gray-600 rounded-xl p-4 items-center mb-3"
+              className="bg-success/10 border-2 border-dashed border-success rounded-xl p-4 items-center mb-3"
               onPress={openExercisePicker}
             >
-              <Ionicons name="add-circle" size={24} color="#00f5ff" />
-              <Text className="text-gray-400 mt-2">Ajouter un exercice</Text>
+              <View className="flex-row items-center">
+                <Ionicons name="add-circle" size={24} color="#00ff88" />
+                <Text className="text-success font-bold ml-2">
+                  💪 AJOUTER UN EXERCICE
+                </Text>
+              </View>
+              <Text className="text-gray-400 text-xs mt-1">
+                Exercice traditionnel avec séries
+              </Text>
             </TouchableOpacity>
 
             {/* BOUTON CRÉER SUPERSET */}
@@ -527,9 +644,9 @@ export default function CreateRoutineScreen({ navigation }) {
               </Text>
             </TouchableOpacity>
 
-            {/* 🆕 BOUTON CRÉER DROP SET */}
+            {/* BOUTON CRÉER DROP SET */}
             <TouchableOpacity
-              className="bg-amber-500/10 border-2 border-dashed border-amber-500 rounded-xl p-4 items-center"
+              className="bg-amber-500/10 border-2 border-dashed border-amber-500 rounded-xl p-4 items-center mb-3"
               onPress={openDropsetCreator}
             >
               <View className="flex-row items-center">
@@ -540,6 +657,22 @@ export default function CreateRoutineScreen({ navigation }) {
               </View>
               <Text className="text-gray-400 text-xs mt-1">
                 Poids dégressifs sur 1 exercice
+              </Text>
+            </TouchableOpacity>
+
+            {/* 🆕 BOUTON CRÉER EXERCICE CHRONOMÉTRÉ */}
+            <TouchableOpacity
+              className="bg-purple-500/10 border-2 border-dashed border-purple-500 rounded-xl p-4 items-center"
+              onPress={openTimedExerciseCreator}
+            >
+              <View className="flex-row items-center">
+                <Ionicons name="timer" size={24} color="#a855f7" />
+                <Text className="text-purple-500 font-bold ml-2">
+                  ⏱️ CRÉER UN EXERCICE CHRONOMÉTRÉ
+                </Text>
+              </View>
+              <Text className="text-gray-400 text-xs mt-1">
+                Timer simple ou intervalles (HIIT)
               </Text>
             </TouchableOpacity>
           </View>

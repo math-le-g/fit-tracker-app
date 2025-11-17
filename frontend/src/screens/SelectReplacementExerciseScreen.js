@@ -45,7 +45,7 @@ export default function SelectReplacementExerciseScreen({ route, navigation }) {
   const recommended = filteredExercises.filter(ex => ex.muscle_group === currentExercise.muscle_group);
   const others = filteredExercises.filter(ex => ex.muscle_group !== currentExercise.muscle_group);
 
-  const muscleGroups = ['all', 'Pectoraux', 'Dos', 'Épaules', 'Biceps', 'Triceps', 'Jambes', 'Abdominaux'];
+  const muscleGroups = ['all', 'Pectoraux', 'Dos', 'Épaules', 'Biceps', 'Triceps', 'Jambes', 'Abdominaux', 'Cardio'];
 
   return (
     <View className="flex-1 bg-primary-dark">

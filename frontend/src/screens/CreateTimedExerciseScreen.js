@@ -1,10 +1,15 @@
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Switch } from 'react-native';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { db } from '../database/database';
 
 export default function CreateTimedExerciseScreen({ route, navigation }) {
-  const { availableExercises, onCreateTimedExercise } = route.params;
+  const { onCreateTimedExercise } = route.params;
+
+  // 🆕 État local pour les exercices (rechargeable)
+  const [availableExercises, setAvailableExercises] = useState([]);
 
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [mode, setMode] = useState('simple'); // 'simple' ou 'interval'
@@ -14,6 +19,27 @@ export default function CreateTimedExerciseScreen({ route, navigation }) {
   const [rounds, setRounds] = useState('10');
 
   const [showExerciseList, setShowExerciseList] = useState(false);
+  const [muscleFilter, setMuscleFilter] = useState('all'); // 🆕 Filtre musculaire
+
+  const muscleGroups = ['all', 'Pectoraux', 'Dos', 'Épaules', 'Biceps', 'Triceps', 'Abdominaux', 'Jambes', 'Cardio']; 
+
+  // 🆕 FONCTION POUR CHARGER LES EXERCICES
+  const loadExercises = async () => {
+    try {
+      const exercises = await db.getAllAsync('SELECT * FROM exercises ORDER BY muscle_group, name');
+      setAvailableExercises(exercises);
+      console.log('✅ Exercices rechargés:', exercises.length);
+    } catch (error) {
+      console.error('❌ Erreur chargement exercices:', error);
+    }
+  };
+
+  // 🆕 RECHARGEMENT AUTOMATIQUE QUAND ON REVIENT SUR L'ÉCRAN
+  useFocusEffect(
+    useCallback(() => {
+      loadExercises();
+    }, [])
+  );
 
   const handleCreate = () => {
     if (!selectedExercise) {
@@ -89,9 +115,64 @@ export default function CreateTimedExerciseScreen({ route, navigation }) {
 
           {/* Liste des exercices */}
           {showExerciseList && (
-            <View className="mt-3 max-h-64">
-              <ScrollView className="bg-primary-dark rounded-xl p-2">
-                {availableExercises.map((ex) => (
+            <View className="mt-3" style={{ maxHeight: 400 }}>
+              {/* 🆕 FILTRES PAR GROUPE MUSCULAIRE */}
+              <View className="mb-3 bg-primary-dark rounded-xl p-2">
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 4 }}
+                >
+                  {muscleGroups.map((muscle, index) => (
+                    <TouchableOpacity
+                      key={muscle}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 12,
+                        backgroundColor: muscleFilter === muscle ? '#00f5ff' : 'rgba(255, 255, 255, 0.1)',
+                        marginRight: index < muscleGroups.length - 1 ? 8 : 0
+                      }}
+                      onPress={() => {
+                        setMuscleFilter(muscle);
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                    >
+                      <Text style={{
+                        fontSize: 12,
+                        fontWeight: '600',
+                        color: muscleFilter === muscle ? '#0a0e27' : '#a8a8a0'
+                      }}>
+                        {muscle === 'all' ? 'Tous' : muscle}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <ScrollView 
+                className="bg-primary-dark rounded-xl p-2"
+                nestedScrollEnabled={true}
+                showsVerticalScrollIndicator={true}
+              >
+                {/* 🆕 BOUTON CRÉER EXERCICE */}
+                <TouchableOpacity
+                  className="bg-success/10 border-2 border-success rounded-xl p-4 mb-3 items-center"
+                  onPress={() => {
+                    navigation.navigate('CreateCustomExercise');
+                  }}
+                >
+                  <View className="flex-row items-center">
+                    <Ionicons name="add-circle" size={24} color="#00ff88" />
+                    <Text className="text-success font-bold ml-2">
+                      ➕ CRÉER UN NOUVEL EXERCICE
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {availableExercises
+                  .filter(ex => muscleFilter === 'all' || ex.muscle_group === muscleFilter)
+                  .map((ex) => (
                   <TouchableOpacity
                     key={ex.id}
                     className={`p-3 rounded-lg mb-2 ${

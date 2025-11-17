@@ -1,6 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { SessionProvider } from '../context/SessionContext';
 
 // Import des écrans
 import HomeScreen from '../screens/HomeScreen';
@@ -14,6 +15,7 @@ const Tab = createBottomTabNavigator();
 
 export default function AppNavigator() {
   return (
+    <SessionProvider>
     <NavigationContainer>
       <Tab.Navigator
         screenOptions={({ route }) => ({
@@ -62,5 +64,6 @@ export default function AppNavigator() {
         <Tab.Screen name="Profil" component={ProfileScreen} />
       </Tab.Navigator>
     </NavigationContainer>
+    </SessionProvider>
   );
 }

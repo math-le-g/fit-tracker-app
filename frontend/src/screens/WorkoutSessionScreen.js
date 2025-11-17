@@ -9,6 +9,8 @@ import ExerciseTransitionScreen from './ExerciseTransitionScreen';
 import TimedExerciseScreen from './TimedExerciseScreen';
 import * as Haptics from 'expo-haptics';
 import CustomModal from '../components/CustomModal';
+import SessionTimer from '../components/SessionTimer';
+import { useSession } from '../context/SessionContext';
 
 export default function WorkoutSessionScreen({ route, navigation }) {
   const { exercises: initialExercises, routineName, skipWarmup } = route.params;
@@ -40,6 +42,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState({});
+  const { startSession, endSession } = useSession();
 
   // DÉTECTION DU TYPE D'EXERCICE ACTUEL
   const currentItem = exercises[currentExerciseIndex];
@@ -60,6 +63,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     if (skipWarmup && !workoutStartTime) {
       setWorkoutStartTime(Date.now());
       setWarmupDuration(0);
+      startSession();
       initWorkout();
     }
   }, [skipWarmup]);
@@ -111,6 +115,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
 
   const savePartialWorkout = async () => {
     try {
+      endSession();
       const workoutDuration = Math.floor((Date.now() - workoutStartTime) / 1000);
       const xpGained = Math.floor((totalSets * 10) + (totalVolume / 100));
 
@@ -145,6 +150,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
 
   const cancelWorkout = async () => {
     try {
+      endSession();
       if (workoutId) {
         await db.runAsync('DELETE FROM sets WHERE workout_id = ?', [workoutId]);
         await db.runAsync('DELETE FROM workouts WHERE id = ?', [workoutId]);
@@ -397,7 +403,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
       );
 
       setTotalSets(prev => prev + 1);
-
+      setCompletedSets(durationCompleted);
       setAllCompletedExercises([...allCompletedExercises, {
         exercise: currentItem,
         durationCompleted: durationCompleted,
@@ -424,11 +430,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
       isSuperset: true
     }]);
 
-    setSupersetCompletedSets({});
-    setCurrentSupersetRound(1);
-    setCurrentSupersetExerciseIndex(0);
-    setCurrentSetIndex(0);
-    setCurrentSupersetId(null);
+    //  NE PAS RESET ICI - on le fait dans startNextExercise
 
     if (currentExerciseIndex < exercises.length - 1) {
       setCurrentPhase('transition');
@@ -489,6 +491,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
 
   const finishWorkout = async () => {
     try {
+      endSession();
       const workoutDuration = Math.floor((Date.now() - workoutStartTime) / 1000);
       const xpGained = Math.floor((totalSets * 10) + (totalVolume / 100));
 
@@ -607,6 +610,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
       if (isTimed) {
         content = (
           <View className="flex-1 bg-primary-dark">
+
             <TouchableOpacity
               className="absolute top-4 right-4 z-10 bg-danger/20 rounded-full p-3"
               onPress={handleQuitSession}
@@ -621,13 +625,8 @@ export default function WorkoutSessionScreen({ route, navigation }) {
               workDuration={currentItem.workDuration}
               restDuration={currentItem.restDuration}
               rounds={currentItem.rounds}
-              onComplete={() => {
-                // Calculer la durée totale effectuée
-                const totalDuration = currentItem.mode === 'simple'
-                  ? currentItem.duration
-                  : (currentItem.workDuration + currentItem.restDuration) * currentItem.rounds;
-
-                completeTimedExercise(totalDuration);
+              onComplete={(durationCompleted) => {
+                completeTimedExercise(durationCompleted);
               }}
             />
           </View>
@@ -695,7 +694,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
       content = (
         <ExerciseTransitionScreen
           completedExercise={currentItem}
-          completedSets={isSuperset ? supersetCompletedSets : isDropset ? dropsetCompletedSets : completedSets}
+          completedSets={isSuperset ? supersetCompletedSets : isDropset ? dropsetCompletedSets : isTimed ? completedSets : completedSets}
           nextExercise={exercises[currentExerciseIndex + 1]}
           exerciseNumber={currentExerciseIndex + 1}
           totalExercises={exercises.length}
@@ -708,6 +707,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
           onQuitSession={handleQuitSession}
           isSuperset={currentItem?.type === 'superset'}
           isDropset={currentItem?.type === 'dropset'}
+          isTimed={currentItem?.type === 'timed'}
         />
       );
       break;
@@ -717,14 +717,15 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   }
 
   return (
-    <>
+    <View className="flex-1">
+      <SessionTimer />
       {content}
       <CustomModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         {...modalConfig}
       />
-    </>
+    </View>
   );
 }
 

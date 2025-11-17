@@ -24,8 +24,10 @@ export default function TimedExerciseScreen({
   const [isPaused, setIsPaused] = useState(false);
   const [timeLeft, setTimeLeft] = useState(mode === 'simple' ? duration : workDuration);
   const [currentRound, setCurrentRound] = useState(1);
-  const [phase, setPhase] = useState('work'); // 'work' ou 'rest'
-  
+  const [phase, setPhase] = useState('work');
+  const [totalTimeElapsed, setTotalTimeElapsed] = useState(0);
+  const startTimeRef = useRef(null);
+
   const progress = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(1)).current;
   const opacity = useRef(new Animated.Value(1)).current;
@@ -92,8 +94,8 @@ export default function TimedExerciseScreen({
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     if (mode === 'simple') {
-      // Timer simple terminé
-      onComplete();
+      // Timer simple terminé - durée complète
+      onComplete(duration);
     } else {
       // Mode intervalles
       if (phase === 'work') {
@@ -103,8 +105,8 @@ export default function TimedExerciseScreen({
       } else {
         // Repos terminé
         if (currentRound >= rounds) {
-          // Tous les tours terminés
-          onComplete();
+          // Tous les tours terminés - durée complète
+          onComplete((workDuration + restDuration) * rounds);
         } else {
           // Tour suivant
           setCurrentRound(currentRound + 1);
@@ -118,6 +120,7 @@ export default function TimedExerciseScreen({
   const handleStart = () => {
     setIsRunning(true);
     setIsPaused(false);
+    startTimeRef.current = Date.now();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
@@ -152,6 +155,11 @@ export default function TimedExerciseScreen({
     outputRange: [CIRCLE_CIRCUMFERENCE, 0],
   });
 
+  const getElapsedTime = () => {
+    if (!startTimeRef.current) return 0;
+    return Math.floor((Date.now() - startTimeRef.current) / 1000);
+  };
+
   return (
     <View className="flex-1 bg-primary-dark">
       <View className="p-6 flex-1">
@@ -179,7 +187,7 @@ export default function TimedExerciseScreen({
                   strokeWidth="20"
                   fill="none"
                 />
-                
+
                 {/* Cercle de progression */}
                 <AnimatedCircle
                   cx={CIRCLE_SIZE / 2}
@@ -253,9 +261,8 @@ export default function TimedExerciseScreen({
           ) : (
             <View className="flex-row gap-3">
               <TouchableOpacity
-                className={`flex-1 rounded-2xl p-5 ${
-                  isPaused ? 'bg-accent-cyan' : 'bg-amber-500'
-                }`}
+                className={`flex-1 rounded-2xl p-5 ${isPaused ? 'bg-accent-cyan' : 'bg-amber-500'
+                  }`}
                 onPress={handlePause}
               >
                 <View className="flex-row items-center justify-center">
@@ -284,7 +291,10 @@ export default function TimedExerciseScreen({
           {/* Bouton terminer */}
           <TouchableOpacity
             className="bg-success/20 border-2 border-success rounded-2xl p-4 mt-3"
-            onPress={onComplete}
+            onPress={() => {
+              const elapsedTime = getElapsedTime();
+              onComplete(elapsedTime > 0 ? elapsedTime : (mode === 'simple' ? duration : (workDuration + restDuration) * rounds));
+            }}
           >
             <Text className="text-success text-center font-bold text-lg">
               ✓ TERMINER L'EXERCICE

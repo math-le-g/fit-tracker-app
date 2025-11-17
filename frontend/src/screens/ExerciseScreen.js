@@ -30,6 +30,9 @@ export default function ExerciseScreen({
   dropIndex = null,
   dropTotalDrops = null
 }) {
+
+
+
   const [weight, setWeight] = useState('');
   const [reps, setReps] = useState('');
   const [lastPerformance, setLastPerformance] = useState(null);
@@ -177,7 +180,7 @@ export default function ExerciseScreen({
                     {supersetInfo.emoji} {supersetInfo.name}
                   </Text>
                   <Text className="text-gray-400 text-sm">
-                    Tour {supersetRound}/{supersetTotalRounds}
+                    Tour {supersetRound || 0}/{supersetTotalRounds || 0}
                   </Text>
                 </View>
               </View>
@@ -203,13 +206,13 @@ export default function ExerciseScreen({
                     🔻 DROP SET
                   </Text>
                   <Text className="text-gray-400 text-sm">
-                    Tour {dropRound}/{dropTotalRounds}
+                    Tour {dropRound || 0}/{dropTotalRounds || 0}
                   </Text>
                 </View>
               </View>
               <View className="bg-amber-500 rounded-full px-3 py-1">
                 <Text className="text-primary-dark font-bold">
-                  Drop {dropIndex + 1}/{dropTotalDrops}
+                  Drop {(dropIndex || 0) + 1}/{dropTotalDrops || 0}
                 </Text>
               </View>
             </View>
@@ -239,10 +242,10 @@ export default function ExerciseScreen({
             <View className="flex-row items-center">
               <Text className={`text-xl font-bold ${isSuperset ? 'text-accent-cyan' : isDropset ? 'text-amber-500' : 'text-accent-cyan'}`}>
                 {isSuperset
-                  ? `Tour ${supersetRound}/${supersetTotalRounds}`
+                  ? `Tour ${supersetRound || 0}/${supersetTotalRounds || 0}`
                   : isDropset
-                    ? `Tour ${dropRound}/${dropTotalRounds}`
-                    : `Série ${setNumber}/${totalSets}`
+                    ? `Tour ${dropRound || 0}/${dropTotalRounds || 0}`
+                    : `Série ${setNumber || 0}/${totalSets || 0}`
                 }
               </Text>
             </View>
@@ -427,6 +430,7 @@ export default function ExerciseScreen({
         )}
 
         {/* 🆕 HISTORIQUE DES DROPS PAR TOUR */}
+        
         {isDropset && previousSets.length > 0 && (
           <View className="bg-amber-500/10 rounded-2xl p-4 mb-4 border border-amber-500/30">
             <Text className="text-amber-500 text-sm font-bold mb-3">
@@ -460,6 +464,7 @@ export default function ExerciseScreen({
                       ))}
                   </View>
                 ));
+                
             })()}
 
             {/* Info série actuelle */}

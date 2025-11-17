@@ -1,13 +1,18 @@
 import { View, Text, TouchableOpacity, ScrollView, TextInput } from 'react-native';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { db } from '../database/database';
 
 export default function CreateDropsetScreen({ route, navigation }) {
-    const { availableExercises, onCreateDropset, existingDropset } = route.params;
+    const { onCreateDropset, existingDropset } = route.params;
 
     // Mode édition ou création
     const isEditMode = !!existingDropset;
+
+    // 🆕 État local pour les exercices (rechargeable)
+    const [availableExercises, setAvailableExercises] = useState([]);
 
     // États
     const [selectedExercise, setSelectedExercise] = useState(
@@ -32,7 +37,25 @@ export default function CreateDropsetScreen({ route, navigation }) {
     const MIN_DROPS = 2;
     const MAX_DROPS = 5;
 
-    const muscleGroups = ['all', 'Pectoraux', 'Dos', 'Épaules', 'Biceps', 'Triceps', 'Jambes', 'Abdominaux'];
+    const muscleGroups = ['all', 'Pectoraux', 'Dos', 'Épaules', 'Biceps', 'Triceps', 'Jambes', 'Abdominaux', 'Cardio'];
+
+    // 🆕 FONCTION POUR CHARGER LES EXERCICES
+    const loadExercises = async () => {
+        try {
+            const exercises = await db.getAllAsync('SELECT * FROM exercises ORDER BY muscle_group, name');
+            setAvailableExercises(exercises);
+            console.log('✅ Exercices rechargés (Dropset):', exercises.length);
+        } catch (error) {
+            console.error('❌ Erreur chargement exercices:', error);
+        }
+    };
+
+    // 🆕 RECHARGEMENT AUTOMATIQUE QUAND ON REVIENT SUR L'ÉCRAN
+    useFocusEffect(
+        useCallback(() => {
+            loadExercises();
+        }, [])
+    );
 
     useEffect(() => {
         navigation.setOptions({

@@ -20,7 +20,7 @@ export default function RestTimerScreen({
   supersetTotalRounds = null
 }) {
 
-  console.log('🔍 RestTimer - onQuitSession:', onQuitSession ? 'REÇU ✅' : 'UNDEFINED ❌');
+  
 
 
   const [timeLeft, setTimeLeft] = useState(duration);
@@ -147,7 +147,7 @@ export default function RestTimerScreen({
             }
           }}
         >
-          <Ionicons name="close" size={24} color="#ff4444" />
+          <Ionicons name="close" size={20} color="#ff4444" />
         </TouchableOpacity>
       </View>
 

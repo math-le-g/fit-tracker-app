@@ -86,18 +86,18 @@ export const initDatabase = async () => {
     }
 
     // 🆕 MIGRATION : Ajouter la colonne dropset_id si elle n'existe pas
-try {
-  await db.execAsync(`
+    try {
+      await db.execAsync(`
     ALTER TABLE sets ADD COLUMN dropset_id TEXT;
   `);
-  console.log('✅ Colonne dropset_id ajoutée à la table sets');
-} catch (error) {
-  // La colonne existe déjà, c'est normal
-  if (!error.message.includes('duplicate column name')) {
-    console.log('⚠️ Colonne dropset_id déjà présente');
-  }
-}
-    
+      console.log('✅ Colonne dropset_id ajoutée à la table sets');
+    } catch (error) {
+      // La colonne existe déjà, c'est normal
+      if (!error.message.includes('duplicate column name')) {
+        console.log('⚠️ Colonne dropset_id déjà présente');
+      }
+    }
+
     // Table courses
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS runs (
@@ -214,6 +214,40 @@ try {
       if (!error.message.includes('duplicate column name')) {
         console.log('⚠️ Colonne superset_data déjà présente');
       }
+    }
+    // 🆕 MIGRATION : Permettre exercise_id NULL pour supersets/dropsets/timed
+    try {
+      // Vérifier si la migration est nécessaire
+      await db.execAsync(`
+    CREATE TABLE routine_exercises_new (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      routine_id INTEGER NOT NULL,
+      exercise_id INTEGER,
+      order_index INTEGER NOT NULL,
+      sets INTEGER DEFAULT 3,
+      rest_time INTEGER DEFAULT 90,
+      superset_data TEXT,
+      FOREIGN KEY(routine_id) REFERENCES routines(id) ON DELETE CASCADE,
+      FOREIGN KEY(exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
+    );
+  `);
+
+      // Copier les anciennes données
+      await db.execAsync(`
+    INSERT INTO routine_exercises_new (id, routine_id, exercise_id, order_index, sets, rest_time, superset_data)
+    SELECT id, routine_id, exercise_id, order_index, sets, rest_time, superset_data 
+    FROM routine_exercises;
+  `);
+
+      // Supprimer l'ancienne table
+      await db.execAsync('DROP TABLE routine_exercises;');
+
+      // Renommer la nouvelle table
+      await db.execAsync('ALTER TABLE routine_exercises_new RENAME TO routine_exercises;');
+
+      console.log('✅ Migration exercise_id nullable terminée');
+    } catch (error) {
+      console.log('⚠️ Migration exercise_id nullable déjà effectuée');
     }
 
     // Pré-charger les exercices
