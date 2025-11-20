@@ -55,6 +55,71 @@ export default function ExerciseScreen({
 
   const loadLastPerformance = async () => {
     try {
+      // 🆕 SI DROP SET - Charger les performances par drop
+      if (isDropset) {
+        const lastDropSets = await db.getAllAsync(`
+        SELECT s.weight, s.reps, s.set_number, w.date, s.dropset_id
+        FROM sets s
+        JOIN workouts w ON s.workout_id = w.id
+        WHERE s.exercise_id = ?
+        AND s.dropset_id IS NOT NULL
+        AND w.id != (SELECT MAX(id) FROM workouts WHERE id IN (SELECT DISTINCT workout_id FROM sets WHERE dropset_id IS NOT NULL))
+        ORDER BY w.date DESC, s.set_number ASC
+        LIMIT 20
+      `, [exercise.id]);
+
+        // Grouper par dropset_id et calculer les records par drop
+        const dropsetGroups = {};
+        lastDropSets.forEach(set => {
+          if (!dropsetGroups[set.dropset_id]) {
+            dropsetGroups[set.dropset_id] = [];
+          }
+          dropsetGroups[set.dropset_id].push(set);
+        });
+
+        // Prendre le dernier drop set
+        const lastDropsetId = Object.keys(dropsetGroups)[0];
+        const lastDropsetSets = lastDropsetId ? dropsetGroups[lastDropsetId] : [];
+
+        // Calculer les records pour chaque drop
+        const dropRecords = {};
+        for (let i = 0; i < (dropTotalDrops || 2); i++) {
+          const maxWeight = await db.getFirstAsync(`
+          SELECT MAX(weight) as max_weight
+          FROM sets
+          WHERE exercise_id = ?
+          AND dropset_id IS NOT NULL
+          AND set_number = ?
+        `, [exercise.id, i + 1]);
+
+          const maxReps = await db.getFirstAsync(`
+          SELECT MAX(reps) as max_reps, weight
+          FROM sets
+          WHERE exercise_id = ?
+          AND dropset_id IS NOT NULL
+          AND set_number = ?
+          GROUP BY weight
+          ORDER BY max_reps DESC
+          LIMIT 1
+        `, [exercise.id, i + 1]);
+
+          dropRecords[i] = {
+            maxWeight: maxWeight?.max_weight || 0,
+            maxReps: maxReps?.max_reps || 0,
+            maxRepsWeight: maxReps?.weight || 0
+          };
+        }
+
+        setLastPerformance({
+          isDropset: true,
+          lastDropSets: lastDropsetSets,
+          dropRecords: dropRecords
+        });
+
+        return; // Sortir de la fonction pour les drop sets
+      }
+
+      // ✅ EXERCICE NORMAL OU SUPERSET
       const lastSets = await db.getAllAsync(`
       SELECT s.weight, s.reps, s.set_number, w.date
       FROM sets s
@@ -65,7 +130,6 @@ export default function ExerciseScreen({
       LIMIT 10
     `, [exercise.id]);
 
-      // 🆕 RÉCUPÉRER LES RECORDS
       const maxWeight = await db.getFirstAsync(`
       SELECT MAX(weight) as max_weight
       FROM sets
@@ -429,17 +493,100 @@ export default function ExerciseScreen({
           </View>
         )}
 
-        {/* 🆕 HISTORIQUE DES DROPS PAR TOUR */}
-        
-        {isDropset && previousSets.length > 0 && (
+        {/* 🆕 HISTORIQUE DROP SET - DERNIÈRE FOIS + RECORDS */}
+        {isDropset && lastPerformance && lastPerformance.isDropset && (
           <View className="bg-amber-500/10 rounded-2xl p-4 mb-4 border border-amber-500/30">
             <Text className="text-amber-500 text-sm font-bold mb-3">
-              📊 HISTORIQUE DES SÉRIES
+              📊 DERNIÈRE FOIS
+            </Text>
+
+            {/* Afficher chaque drop de la dernière séance */}
+            {lastPerformance.lastDropSets && lastPerformance.lastDropSets.length > 0 ? (
+              <View className="mb-3">
+                {lastPerformance.lastDropSets
+                  .sort((a, b) => a.set_number - b.set_number)
+                  .map((set, idx) => (
+                    <View key={idx} className="bg-primary-dark rounded-xl p-3 mb-2">
+                      <Text className="text-gray-400 text-xs mb-1">
+                        Drop {set.set_number}
+                      </Text>
+                      <Text className="text-white font-semibold text-lg">
+                        {set.weight}kg × {set.reps} reps
+                      </Text>
+                    </View>
+                  ))}
+              </View>
+            ) : (
+              <View className="bg-primary-dark rounded-xl p-3 mb-3">
+                <Text className="text-gray-400 text-sm text-center">
+                  Première fois pour cet exercice en drop set
+                </Text>
+              </View>
+            )}
+
+            {/* Records pour chaque drop */}
+            {lastPerformance.dropRecords && (
+              <>
+                <Text className="text-amber-500 text-sm font-bold mb-2 mt-2">
+                  🏆 RECORDS PAR DROP
+                </Text>
+                {Object.keys(lastPerformance.dropRecords).map((dropIdx) => {
+                  const record = lastPerformance.dropRecords[dropIdx];
+                  const isCurrentDrop = parseInt(dropIdx) === dropIndex;
+
+                  return (
+                    <View
+                      key={dropIdx}
+                      className={`rounded-xl p-3 mb-2 ${isCurrentDrop
+                          ? 'bg-amber-500/20 border border-amber-500'
+                          : 'bg-primary-dark'
+                        }`}
+                    >
+                      <Text className={`text-xs font-bold mb-2 ${isCurrentDrop ? 'text-amber-400' : 'text-gray-400'
+                        }`}>
+                        Drop {parseInt(dropIdx) + 1} {isCurrentDrop ? '← Actuel' : ''}
+                      </Text>
+
+                      <View className="flex-row gap-2">
+                        {/* Record poids */}
+                        <View className="flex-1">
+                          <Text className="text-accent-cyan text-xs">
+                            🏋️ Poids max
+                          </Text>
+                          <Text className="text-white font-bold">
+                            {record.maxWeight}kg
+                          </Text>
+                        </View>
+
+                        {/* Record reps */}
+                        <View className="flex-1">
+                          <Text className="text-success text-xs">
+                            💪 Reps max
+                          </Text>
+                          <Text className="text-white font-bold">
+                            {record.maxReps} reps
+                          </Text>
+                          <Text className="text-gray-400 text-xs">
+                            à {record.maxRepsWeight}kg
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+              </>
+            )}
+          </View>
+        )}
+
+        {/* 🆕 HISTORIQUE DES DROPS PAR TOUR (séance en cours) */}
+        {isDropset && previousSets.length > 0 && (
+          <View className="bg-primary-navy rounded-2xl p-4 mb-4">
+            <Text className="text-gray-400 text-sm font-bold mb-3">
+              📈 SÉANCE EN COURS
             </Text>
             {(() => {
-              // Grouper les drops par tour (round)
               const tourGroups = {};
-
               previousSets.forEach(set => {
                 const tourNum = set.round || 1;
                 if (!tourGroups[tourNum]) {
@@ -452,7 +599,7 @@ export default function ExerciseScreen({
                 .sort((a, b) => parseInt(a) - parseInt(b))
                 .map(tourNum => (
                   <View key={tourNum} className="mb-3">
-                    <Text className="text-amber-400 text-sm font-bold mb-1">
+                    <Text className="text-accent-cyan text-sm font-bold mb-1">
                       Série {tourNum}
                     </Text>
                     {tourGroups[tourNum]
@@ -464,11 +611,9 @@ export default function ExerciseScreen({
                       ))}
                   </View>
                 ));
-                
             })()}
 
-            {/* Info série actuelle */}
-            <View className="mt-2 pt-2 border-t border-amber-500/30">
+            <View className="mt-2 pt-2 border-t border-primary-dark">
               <Text className="text-gray-400 text-xs text-center">
                 🔥 Série {dropRound} en cours
               </Text>

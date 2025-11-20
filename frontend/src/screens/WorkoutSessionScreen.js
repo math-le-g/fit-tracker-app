@@ -398,8 +398,8 @@ export default function WorkoutSessionScreen({ route, navigation }) {
 
       // Sauvegarder dans la table sets avec weight=0 et reps=durée
       await db.runAsync(
-        'INSERT INTO sets (workout_id, exercise_id, set_number, weight, reps, superset_id, dropset_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [workoutId, currentExercise.id, 1, 0, durationCompleted, null, null]
+        'INSERT INTO sets (workout_id, exercise_id, set_number, weight, reps, superset_id, dropset_id, is_timed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [workoutId, currentExercise.id, 1, 0, durationCompleted, null, null, 1]
       );
 
       setTotalSets(prev => prev + 1);

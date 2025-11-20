@@ -97,6 +97,18 @@ export const initDatabase = async () => {
         console.log('⚠️ Colonne dropset_id déjà présente');
       }
     }
+    // 🆕 MIGRATION : Ajouter la colonne is_timed si elle n'existe pas
+    try {
+      await db.execAsync(`
+    ALTER TABLE sets ADD COLUMN is_timed INTEGER DEFAULT 0;
+  `);
+      console.log('✅ Colonne is_timed ajoutée à la table sets');
+    } catch (error) {
+      // La colonne existe déjà, c'est normal
+      if (!error.message.includes('duplicate column name')) {
+        console.log('⚠️ Colonne is_timed déjà présente');
+      }
+    }
 
     // Table courses
     await db.execAsync(`

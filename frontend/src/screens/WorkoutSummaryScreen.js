@@ -7,7 +7,6 @@ import { checkAndUnlockBadges } from '../utils/badgeSystem';
 import { getSupersetInfo, isSuperset as isSupersetHelper } from '../utils/supersetHelpers';
 
 export default function WorkoutSummaryScreen({ route, navigation }) {
-  // ✅ AJOUT du flag isPartial
   const { workoutId, warmupDuration, workoutDuration, totalSets, totalVolume, xpGained, isPartial = false } = route.params;
   const [workoutDetails, setWorkoutDetails] = useState([]);
   const [records, setRecords] = useState([]);
@@ -22,21 +21,22 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
 
   const loadWorkoutDetails = async () => {
     try {
-      // 🆕 CHARGER AVEC superset_id
       const details = await db.getAllAsync(`
-  SELECT 
-    e.id as exercise_id,
-    e.name,
-    s.set_number,
-    s.weight,
-    s.reps,
-    s.superset_id,
-    s.dropset_id
-  FROM sets s
-  JOIN exercises e ON s.exercise_id = e.id
-  WHERE s.workout_id = ?
-  ORDER BY s.id ASC
-`, [workoutId]);
+        SELECT 
+          e.id as exercise_id,
+          e.name,
+          s.id,
+          s.set_number,
+          s.weight,
+          s.reps,
+          s.superset_id,
+          s.dropset_id,
+          s.is_timed
+        FROM sets s
+        JOIN exercises e ON s.exercise_id = e.id
+        WHERE s.workout_id = ?
+        ORDER BY s.id ASC
+      `, [workoutId]);
 
       setWorkoutDetails(details);
     } catch (error) {
@@ -45,11 +45,7 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
   };
 
   const checkForRecords = async () => {
-    // TODO: Vérifier les records
-    // Pour l'instant, on simule
-    setRecords([
-      // { exercise: 'Développé Couché', oldValue: '82kg', newValue: '85kg', improvement: '+3kg' }
-    ]);
+    setRecords([]);
   };
 
   const formatTime = (seconds) => {
@@ -66,51 +62,57 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
     const grouped = {};
     const supersets = {};
     const dropsets = {};
-    const timed = {}; // 🆕
+    const timed = {};
+    const orderTracker = {};
 
     workoutDetails.forEach(detail => {
-      // 🆕 DÉTECTER LES EXERCICES CHRONOMÉTRÉS (weight=0 et pas de superset/dropset)
-      if (detail.weight === 0 && !detail.superset_id && !detail.dropset_id) {
-        // C'EST UN EXERCICE CHRONOMÉTRÉ
+      if (detail.is_timed === 1) {
         if (!timed[detail.name]) {
           timed[detail.name] = {
             isTimed: true,
             exerciseName: detail.name,
-            duration: detail.reps // La durée est stockée dans reps
+            duration: detail.reps,
+            firstId: detail.id
           };
+          orderTracker[detail.id] = { type: 'timed', key: detail.name };
         }
       } else if (detail.dropset_id) {
-        // 🔻 C'EST UN DROP SET
         if (!dropsets[detail.dropset_id]) {
           dropsets[detail.dropset_id] = {
             isDropset: true,
             exerciseName: detail.name,
-            sets: []
+            sets: [],
+            firstId: detail.id
           };
+          orderTracker[detail.id] = { type: 'dropset', key: detail.dropset_id };
         }
         dropsets[detail.dropset_id].sets.push(detail);
       } else if (detail.superset_id) {
-        // 🔥 C'EST UN SUPERSET
         if (!supersets[detail.superset_id]) {
           supersets[detail.superset_id] = {
             isSuperset: true,
-            exercises: {}
+            exercises: {},
+            firstId: detail.id
           };
+          orderTracker[detail.id] = { type: 'superset', key: detail.superset_id };
         }
         if (!supersets[detail.superset_id].exercises[detail.name]) {
           supersets[detail.superset_id].exercises[detail.name] = [];
         }
         supersets[detail.superset_id].exercises[detail.name].push(detail);
       } else {
-        // ✅ EXERCICE NORMAL
         if (!grouped[detail.name]) {
-          grouped[detail.name] = [];
+          grouped[detail.name] = {
+            sets: [],
+            firstId: detail.id
+          };
+          orderTracker[detail.id] = { type: 'normal', key: detail.name };
         }
-        grouped[detail.name].push(detail);
+        grouped[detail.name].sets.push(detail);
       }
     });
 
-    return { normal: grouped, supersets: supersets, dropsets: dropsets, timed: timed };
+    return { normal: grouped, supersets, dropsets, timed, orderTracker };
   };
 
   const checkBadges = async () => {
@@ -133,7 +135,6 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
               color={isPartial ? "#00f5ff" : "#00ff88"}
             />
           </View>
-          {/* ✅ MODIFICATION DU TITRE selon isPartial */}
           <Text className="text-white text-3xl font-bold mb-2">
             {isPartial ? '⏸️ SÉANCE PARTIELLE' : '🎉 SÉANCE TERMINÉE !'}
           </Text>
@@ -142,7 +143,7 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
           </Text>
         </View>
 
-        {/* ✅ NOUVEAU BADGE SI SÉANCE PARTIELLE */}
+        {/* Badge séance partielle */}
         {isPartial && (
           <View className="bg-accent-cyan/10 rounded-2xl p-4 mb-6 border border-accent-cyan">
             <View className="flex-row items-start">
@@ -262,32 +263,42 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
           </Text>
 
           {(() => {
-            const { normal, supersets, dropsets, timed } = groupByExercise();
-            const allItems = [];
+            const { normal, supersets, dropsets, timed, orderTracker } = groupByExercise();
 
-            // Ajouter les exercices normaux
-            Object.entries(normal).forEach(([exerciseName, sets]) => {
-              allItems.push({ type: 'normal', name: exerciseName, sets });
-            });
+            const allItems = Object.keys(orderTracker)
+              .sort((a, b) => parseInt(a) - parseInt(b))
+              .map(id => {
+                const tracker = orderTracker[id];
 
-            // Ajouter les supersets
-            Object.entries(supersets).forEach(([supersetId, supersetData]) => {
-              allItems.push({ type: 'superset', id: supersetId, data: supersetData });
-            });
-
-            // Ajouter les drop sets
-            Object.entries(dropsets).forEach(([dropsetId, dropsetData]) => {
-              allItems.push({ type: 'dropset', id: dropsetId, data: dropsetData });
-            });
-
-            // 🆕 Ajouter les exercices chronométrés
-            Object.entries(timed).forEach(([exerciseName, timedData]) => {
-              allItems.push({ type: 'timed', name: exerciseName, data: timedData });
-            });
+                if (tracker.type === 'normal') {
+                  return {
+                    type: 'normal',
+                    name: tracker.key,
+                    sets: normal[tracker.key].sets
+                  };
+                } else if (tracker.type === 'superset') {
+                  return {
+                    type: 'superset',
+                    id: tracker.key,
+                    data: supersets[tracker.key]
+                  };
+                } else if (tracker.type === 'dropset') {
+                  return {
+                    type: 'dropset',
+                    id: tracker.key,
+                    data: dropsets[tracker.key]
+                  };
+                } else if (tracker.type === 'timed') {
+                  return {
+                    type: 'timed',
+                    name: tracker.key,
+                    data: timed[tracker.key]
+                  };
+                }
+              });
 
             return allItems.map((item, index) => {
               if (item.type === 'timed') {
-                // ⏱️ AFFICHAGE EXERCICE CHRONOMÉTRÉ
                 return (
                   <View
                     key={`timed_${index}`}
@@ -308,7 +319,6 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
                         </View>
                       </View>
 
-                      {/* Durée effectuée */}
                       <View className="bg-primary-dark rounded-xl p-3">
                         <View className="flex-row items-center justify-between">
                           <View className="flex-row items-center">
@@ -321,7 +331,6 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
                         </View>
                       </View>
 
-                      {/* Badge */}
                       <View className="bg-purple-500/20 rounded-xl p-2 border border-purple-500/30 mt-3">
                         <Text className="text-purple-500 text-xs text-center font-semibold">
                           ⏱️ Timer complété
@@ -331,11 +340,8 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
                   </View>
                 );
               } else if (item.type === 'dropset') {
-                // 🔻 AFFICHAGE DROP SET
                 const sets = item.data.sets;
-
-                // DÉTECTER LE NOMBRE DE DROPS PAR TOUR
-                let dropsPerRound = 2; // Par défaut
+                let dropsPerRound = 2;
                 for (let d = 2; d <= 4; d++) {
                   if (sets.length % d === 0) {
                     dropsPerRound = d;
@@ -343,12 +349,10 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
                   }
                 }
 
-                // GROUPER PAR TOUR
                 const roundsMap = {};
                 sets.forEach(set => {
                   const roundNum = Math.ceil(set.set_number / dropsPerRound);
                   const dropNum = ((set.set_number - 1) % dropsPerRound) + 1;
-
                   if (!roundsMap[roundNum]) {
                     roundsMap[roundNum] = [];
                   }
@@ -358,8 +362,7 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
                 return (
                   <View
                     key={item.id}
-                    className={`py-3 mb-3 ${index < allItems.length - 1 ? 'border-b border-primary-dark' : ''
-                      }`}
+                    className={`py-3 mb-3 ${index < allItems.length - 1 ? 'border-b border-primary-dark' : ''}`}
                   >
                     <View className="rounded-xl p-4 mb-2 bg-amber-500/10 border border-amber-500">
                       <View className="mb-3">
@@ -374,7 +377,6 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
                         </Text>
                       </View>
 
-                      {/* Tours groupés */}
                       {Object.keys(roundsMap)
                         .sort((a, b) => parseInt(a) - parseInt(b))
                         .map(roundNum => (
@@ -395,15 +397,13 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
                   </View>
                 );
               } else if (item.type === 'superset') {
-                // 🔥 AFFICHAGE SUPERSET
                 const exerciseCount = Object.keys(item.data.exercises).length;
                 const supersetInfo = getSupersetInfo(exerciseCount);
 
                 return (
                   <View
                     key={item.id}
-                    className={`py-3 mb-3 ${index < allItems.length - 1 ? 'border-b border-primary-dark' : ''
-                      }`}
+                    className={`py-3 mb-3 ${index < allItems.length - 1 ? 'border-b border-primary-dark' : ''}`}
                   >
                     <View className={`rounded-xl p-3 mb-2 ${supersetInfo.bgColor}/10 border ${supersetInfo.borderColor}`}>
                       <View className="flex-row items-center mb-2">
@@ -413,7 +413,6 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
                         </Text>
                       </View>
 
-                      {/* Exercices du superset */}
                       {Object.entries(item.data.exercises).map(([exerciseName, sets], exIndex) => (
                         <View key={exIndex} className="ml-3 mt-2">
                           <Text className="text-white font-semibold mb-1">
@@ -430,7 +429,6 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
                   </View>
                 );
               } else {
-                // ✅ AFFICHAGE EXERCICE NORMAL
                 return (
                   <View
                     key={index}
@@ -451,13 +449,11 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
                         </View>
                       </View>
 
-                      {/* Liste des séries */}
                       <View className="bg-primary-dark rounded-xl p-3">
                         {item.sets.map((set, setIndex) => (
                           <View
                             key={setIndex}
-                            className={`flex-row items-center justify-between py-2 ${setIndex < item.sets.length - 1 ? 'border-b border-primary-navy' : ''
-                              }`}
+                            className={`flex-row items-center justify-between py-2 ${setIndex < item.sets.length - 1 ? 'border-b border-primary-navy' : ''}`}
                           >
                             <View className="flex-row items-center">
                               <View className="bg-success rounded-full w-6 h-6 items-center justify-center mr-3">

@@ -409,7 +409,7 @@ export default function RoutineDetailScreen({ route, navigation }) {
                   key={item.id || index}
                   className={`py-3 ${index < exercises.length - 1 ? 'border-b border-primary-dark' : ''}`}
                 >
-                  <View className={`${supersetInfo.bgColor}/10 rounded-2xl p-4 border ${supersetInfo.borderColor}`}>
+                  <View className={`${supersetInfo.bgColor}/10 rounded-2xl p-4 border border-accent-cyan/30`}>
                     <View className="flex-row items-center mb-3">
                       <View className={`${supersetInfo.bgColor} rounded-full w-10 h-10 items-center justify-center mr-3`}>
                         <Ionicons name={supersetInfo.icon} size={20} color="#0a0e27" />
