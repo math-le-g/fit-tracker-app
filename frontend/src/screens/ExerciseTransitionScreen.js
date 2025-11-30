@@ -245,7 +245,7 @@ export default function ExerciseTransitionScreen({
                       </Text>
                       {exerciseSets.map((set, setIndex) => (
                         <View key={setIndex} className="flex-row justify-between mb-1 ml-4">
-                          <Text className="text-gray-400">Tour {setIndex + 1}</Text>
+                          <Text className="text-gray-400">Série {setIndex + 1}</Text>
                           <Text className="text-white font-semibold">
                             {set.weight}kg × {set.reps} reps
                           </Text>
@@ -401,15 +401,16 @@ export default function ExerciseTransitionScreen({
                     </Text>
                   )}
 
+                  {/* ✅ CORRIGÉ : séries AVANT drops/exercices */}
                   <Text className="text-gray-400 text-sm mt-1">
                     {nextExercise.type === 'timed'
                       ? nextExercise.mode === 'simple'
                         ? `⏱️ ${Math.floor(nextExercise.duration / 60)} min`
                         : `🔥 ${nextExercise.rounds} intervalles (${nextExercise.workDuration}s / ${nextExercise.restDuration}s)`
                       : nextExercise.type === 'superset'
-                        ? `${nextExercise.exercises?.length} exercices • ${nextExercise.rounds} tours`
+                        ? `${nextExercise.rounds} séries • ${nextExercise.exercises?.length} exercices`
                         : nextExercise.type === 'dropset'
-                          ? `${nextExercise.drops} drops • ${nextExercise.rounds} tours`
+                          ? `${nextExercise.rounds} séries • ${nextExercise.drops} drops`
                           : `${nextExercise.sets} séries • ${nextExercise.rest_time}s repos`
                     }
                   </Text>

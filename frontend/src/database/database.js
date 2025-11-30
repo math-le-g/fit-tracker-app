@@ -110,6 +110,18 @@ export const initDatabase = async () => {
       }
     }
 
+    // 🆕 MIGRATION : Ajouter la colonne routine_id à workouts
+    try {
+      await db.execAsync(`
+        ALTER TABLE workouts ADD COLUMN routine_id INTEGER;
+      `);
+      console.log('✅ Colonne routine_id ajoutée à la table workouts');
+    } catch (error) {
+      if (!error.message.includes('duplicate column name')) {
+        console.log('⚠️ Colonne routine_id déjà présente dans workouts');
+      }
+    }
+
     // Table courses
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS runs (

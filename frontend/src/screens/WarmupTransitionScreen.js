@@ -6,7 +6,7 @@ import { useSession } from '../context/SessionContext';
 import CustomModal from '../components/CustomModal';
 
 export default function WarmupTransitionScreen({ route, navigation }) {
-  const { routineId, exercises, warmupDuration, lastWorkoutDuration } = route.params;
+  const { routineId, exercises, warmupDuration, actualWarmupSeconds, lastWorkoutDuration } = route.params;
   const { formattedTime, endSession } = useSession();
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState({});
@@ -28,10 +28,18 @@ export default function WarmupTransitionScreen({ route, navigation }) {
 
   const getEstimatedDuration = () => {
     const workoutTime = exercises.reduce((sum, ex) => {
-      // Superset ou Dropset : temps = (rounds * 45s) + repos entre rounds
-      if (ex.type === 'superset' || ex.type === 'dropset') {
-        return sum + (ex.rounds * 45) + ((ex.rounds - 1) * ex.rest_time);
+      // Superset : (nb exercices × 30s) × nb séries + repos entre séries
+      if (ex.type === 'superset') {
+        const exerciseTime = (ex.exercises?.length || 2) * 30; // 30s par exercice
+        return sum + (ex.rounds * exerciseTime) + ((ex.rounds - 1) * ex.rest_time);
       }
+      
+      // ✅ Dropset : (nb drops × 15s) × nb séries + repos entre séries
+      if (ex.type === 'dropset') {
+        const dropTime = (ex.drops || 2) * 15; // 15s par drop
+        return sum + (ex.rounds * dropTime) + ((ex.rounds - 1) * ex.rest_time);
+      }
+      
       // Exercice chronométré
       if (ex.type === 'timed') {
         if (ex.mode === 'simple') {
@@ -42,7 +50,8 @@ export default function WarmupTransitionScreen({ route, navigation }) {
           return sum + ((ex.workDuration + ex.restDuration) * ex.rounds);
         }
       }
-      // Exercice normal : temps = (sets * 45s) + repos entre sets
+      
+      // Exercice normal : (45s par série) + repos entre séries
       return sum + ((ex.sets || 0) * 45) + (((ex.sets || 1) - 1) * (ex.rest_time || 90));
     }, 0);
     return Math.round(workoutTime / 60);
@@ -50,9 +59,10 @@ export default function WarmupTransitionScreen({ route, navigation }) {
 
   const startExercises = () => {
     navigation.replace('WorkoutSession', {
+      routineName: route.params.routineName,
       routineId,
       exercises,
-      warmupDuration,
+      actualWarmupSeconds: actualWarmupSeconds || 0,  // ✅ Temps réel d'échauffement
       skipWarmup: true  // ✅ Échauffement déjà fait !
     });
   };
@@ -78,7 +88,7 @@ export default function WarmupTransitionScreen({ route, navigation }) {
     if (!exercise) return '0 séries';
 
     if (exercise.type === 'superset' || exercise.type === 'dropset') {
-      return `${exercise.rounds || 0} tours`;
+      return `${exercise.rounds || 0} séries`;
     }
     if (exercise.type === 'timed') {
       if (exercise.mode === 'simple') {
@@ -88,6 +98,7 @@ export default function WarmupTransitionScreen({ route, navigation }) {
     }
     return `${exercise.sets || 0} séries`;
   };
+  
   const handleQuitSession = () => {
     setModalConfig({
       title: '🚪 Quitter la séance ?',
@@ -137,7 +148,11 @@ export default function WarmupTransitionScreen({ route, navigation }) {
             ✅ ÉCHAUFFEMENT TERMINÉ
           </Text>
           <Text className="text-gray-400">
-            ⏱️ {warmupDuration} minutes
+            ⏱️ {actualWarmupSeconds 
+              ? (actualWarmupSeconds >= 60 
+                  ? `${Math.floor(actualWarmupSeconds / 60)} min ${actualWarmupSeconds % 60 > 0 ? `${actualWarmupSeconds % 60}s` : ''}`
+                  : `${actualWarmupSeconds}s`)
+              : `${warmupDuration} minutes`}
           </Text>
         </View>
 
@@ -184,6 +199,13 @@ export default function WarmupTransitionScreen({ route, navigation }) {
                 }
               </Text>
             </View>
+            
+            {/* ✅ Info que le repos est inclus */}
+            {!lastWorkoutDuration && (
+              <Text className="text-gray-500 text-xs mt-1 text-right">
+                (repos inclus)
+              </Text>
+            )}
           </View>
         </View>
 

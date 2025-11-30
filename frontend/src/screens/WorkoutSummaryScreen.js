@@ -7,17 +7,34 @@ import { checkAndUnlockBadges } from '../utils/badgeSystem';
 import { getSupersetInfo, isSuperset as isSupersetHelper } from '../utils/supersetHelpers';
 
 export default function WorkoutSummaryScreen({ route, navigation }) {
-  const { workoutId, warmupDuration, workoutDuration, totalSets, totalVolume, xpGained, isPartial = false } = route.params;
+  const { workoutId, warmupDuration = 0, workoutDuration, totalSets, totalVolume, xpGained, isPartial = false } = route.params;
   const [workoutDetails, setWorkoutDetails] = useState([]);
   const [records, setRecords] = useState([]);
   const [newBadges, setNewBadges] = useState([]);
+  const [actualWarmupDuration, setActualWarmupDuration] = useState(warmupDuration);
 
   useEffect(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     loadWorkoutDetails();
+    loadWarmupFromDB();
     checkForRecords();
     checkBadges();
   }, []);
+
+  const loadWarmupFromDB = async () => {
+    try {
+      const workout = await db.getFirstAsync(
+        'SELECT warmup_duration FROM workouts WHERE id = ?',
+        [workoutId]
+      );
+      if (workout && workout.warmup_duration) {
+        // Garder en SECONDES pour un affichage précis
+        setActualWarmupDuration(workout.warmup_duration);
+      }
+    } catch (error) {
+      console.error('Erreur chargement warmup:', error);
+    }
+  };
 
   const loadWorkoutDetails = async () => {
     try {
@@ -54,8 +71,23 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
     return `${mins}min ${secs}s`;
   };
 
+  // Formater l'échauffement de manière lisible
+  const formatWarmup = (seconds) => {
+    if (seconds === 0) return '0';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins === 0) {
+      return `${secs} sec`;
+    } else if (secs === 0) {
+      return `${mins} min`;
+    } else {
+      return `${mins} min ${secs} sec`;
+    }
+  };
+
   const getTotalTime = () => {
-    return (warmupDuration * 60) + workoutDuration;
+    // actualWarmupDuration est maintenant en secondes
+    return actualWarmupDuration + workoutDuration;
   };
 
   const groupByExercise = () => {
@@ -121,6 +153,36 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
       setNewBadges(unlockedBadges);
       console.log('🏆 Nouveaux badges débloqués:', unlockedBadges);
     }
+  };
+
+  // 🆕 NOUVELLE LOGIQUE : Grouper les dropsets par série
+  // set_number = numéro du drop (1, 2, 3), pas compteur global
+  // Quand set_number revient à 1 (ou diminue) = nouvelle série
+  const groupDropsetBySeries = (sets) => {
+    const roundsMap = {};
+    const sortedSets = [...sets].sort((a, b) => a.id - b.id);
+    
+    let currentRound = 1;
+    let lastSetNumber = 0;
+    
+    sortedSets.forEach((set) => {
+      // Si set_number diminue ou revient à 1, c'est une nouvelle série
+      if (set.set_number <= lastSetNumber && lastSetNumber > 0) {
+        currentRound++;
+      }
+      lastSetNumber = set.set_number;
+      
+      if (!roundsMap[currentRound]) {
+        roundsMap[currentRound] = [];
+      }
+      
+      roundsMap[currentRound].push({ 
+        ...set, 
+        dropNum: set.set_number // Le numéro du drop est directement set_number
+      });
+    });
+    
+    return roundsMap;
   };
 
   return (
@@ -192,7 +254,7 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
             <View className="flex-1">
               <Text className="text-gray-400 text-sm">Détail temps</Text>
               <Text className="text-white">
-                🔥 Échauffement : {warmupDuration} min
+                🔥 Échauffement : {formatWarmup(actualWarmupDuration)}
               </Text>
               <Text className="text-white">
                 💪 Exercices : {formatTime(workoutDuration)}
@@ -340,24 +402,10 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
                   </View>
                 );
               } else if (item.type === 'dropset') {
-                const sets = item.data.sets;
-                let dropsPerRound = 2;
-                for (let d = 2; d <= 4; d++) {
-                  if (sets.length % d === 0) {
-                    dropsPerRound = d;
-                    break;
-                  }
-                }
-
-                const roundsMap = {};
-                sets.forEach(set => {
-                  const roundNum = Math.ceil(set.set_number / dropsPerRound);
-                  const dropNum = ((set.set_number - 1) % dropsPerRound) + 1;
-                  if (!roundsMap[roundNum]) {
-                    roundsMap[roundNum] = [];
-                  }
-                  roundsMap[roundNum].push({ ...set, dropNum });
-                });
+                // 🆕 Utiliser la nouvelle fonction de groupage
+                const roundsMap = groupDropsetBySeries(item.data.sets);
+                const totalRounds = Object.keys(roundsMap).length;
+                const dropsPerRound = roundsMap[1] ? roundsMap[1].length : 0;
 
                 return (
                   <View
@@ -370,6 +418,9 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
                           <Ionicons name="trending-down" size={20} color="#f59e0b" />
                           <Text className="text-amber-500 font-bold text-lg ml-2">
                             🔻 DROP SET
+                          </Text>
+                          <Text className="text-amber-400 text-sm ml-2">
+                            ({totalRounds} séries × {dropsPerRound} drops)
                           </Text>
                         </View>
                         <Text className="text-white font-bold text-xl ml-7">
@@ -420,7 +471,7 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
                           </Text>
                           {sets.map((set, setIndex) => (
                             <Text key={setIndex} className="text-gray-400 text-sm ml-2">
-                              Tour {set.set_number}: {set.weight}kg × {set.reps} reps
+                              Série {set.set_number}: {set.weight}kg × {set.reps} reps
                             </Text>
                           ))}
                         </View>

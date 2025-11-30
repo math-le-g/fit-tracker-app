@@ -283,10 +283,10 @@ export default function CreateDropsetScreen({ route, navigation }) {
                                 </View>
                             </View>
 
-                            {/* Nombre de tours */}
+                            {/* Nombre de séries */}
                             <View className="mb-4">
                                 <Text className="text-white text-lg font-bold mb-3">
-                                    NOMBRE DE TOURS
+                                    NOMBRE DE SERIES
                                 </Text>
                                 <View className="flex-row items-center gap-3">
                                     <TouchableOpacity
@@ -320,7 +320,7 @@ export default function CreateDropsetScreen({ route, navigation }) {
                             {/* Temps de repos */}
                             <View className="mb-4">
                                 <Text className="text-white text-lg font-bold mb-3">
-                                    REPOS ENTRE LES TOURS
+                                    REPOS ENTRE LES SERIES
                                 </Text>
                                 <View className="flex-row items-center gap-2">
                                     {/* Minutes */}
@@ -411,10 +411,10 @@ export default function CreateDropsetScreen({ route, navigation }) {
                                     • {drops} drops (30kg → 25kg → 20kg...)
                                 </Text>
                                 <Text className="text-gray-400 text-sm mb-1">
-                                    • {rounds} tour{rounds > 1 ? 's' : ''} au total
+                                    • {rounds} série{rounds > 1 ? 's' : ''} au total
                                 </Text>
                                 <Text className="text-gray-400 text-sm">
-                                    • {restMinutes}:{restSeconds.toString().padStart(2, '0')} de repos entre tours
+                                    • {restMinutes}:{restSeconds.toString().padStart(2, '0')} de repos entre séries
                                 </Text>
                             </View>
 

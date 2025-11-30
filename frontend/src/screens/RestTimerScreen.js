@@ -26,6 +26,7 @@ export default function RestTimerScreen({
   const [timeLeft, setTimeLeft] = useState(duration);
   const [isPaused, setIsPaused] = useState(false);
   const [hasCompleted, setHasCompleted] = useState(false);
+  const [startTime] = useState(Date.now()); // ✅ Timestamp de début pour calculer le temps réel
 
   // 🆕 OBTENIR LES INFOS DU SUPERSET
   const supersetInfo = isSuperset && supersetTotalRounds
@@ -99,15 +100,19 @@ export default function RestTimerScreen({
       setHasCompleted(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setTimeout(() => {
-        onComplete(duration);
+        // ✅ Calculer le temps RÉEL écoulé
+        const realElapsed = Math.floor((Date.now() - startTime) / 1000);
+        onComplete(realElapsed);
       }, 100);
     }
-  }, [timeLeft, hasCompleted, duration, onComplete]);
+  }, [timeLeft, hasCompleted, startTime, onComplete]);
 
   const skipRest = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setHasCompleted(true);
-    onComplete(duration - timeLeft);
+    // ✅ Calculer le temps RÉEL écoulé
+    const realElapsed = Math.floor((Date.now() - startTime) / 1000);
+    onComplete(realElapsed);
   };
 
   const adjustTime = (seconds) => {
@@ -162,7 +167,7 @@ export default function RestTimerScreen({
             <View className="mb-8">
               <Text className="text-white text-2xl font-bold text-center mb-2">
                 {isSuperset && supersetInfo
-                  ? `${supersetInfo.emoji} ${supersetInfo.name} - Tour ${supersetRound + 1}/${supersetTotalRounds}`
+                  ? `${supersetInfo.emoji} ${supersetInfo.name} - Série ${supersetRound + 1}/${supersetTotalRounds}`
                   : exerciseName
                 }
               </Text>

@@ -441,7 +441,7 @@ export default function EditRoutineScreen({ route, navigation }) {
                         </TouchableOpacity>
                       </View>
                     </View>
-                    <Text className="text-gray-400 text-sm">{ex.rounds} tours • {Math.floor(ex.rest_time / 60)}:{(ex.rest_time % 60).toString().padStart(2, '0')} repos</Text>
+                    <Text className="text-gray-400 text-sm">{ex.rounds} séries • {ex.exercises.length} exercices • {Math.floor(ex.rest_time / 60)}:{(ex.rest_time % 60).toString().padStart(2, '0')} repos</Text>
                   </View>
                 );
               } else if (isDropset) {
@@ -469,7 +469,8 @@ export default function EditRoutineScreen({ route, navigation }) {
                         </TouchableOpacity>
                       </View>
                     </View>
-                    <Text className="text-gray-400 text-sm">{ex.drops} drops • {ex.rounds} tours • {Math.floor(ex.rest_time / 60)}:{(ex.rest_time % 60).toString().padStart(2, '0')} repos</Text>
+                    {/* ✅ INVERSÉ : séries AVANT drops */}
+                    <Text className="text-gray-400 text-sm">{ex.rounds} séries • {ex.drops} drops • {Math.floor(ex.rest_time / 60)}:{(ex.rest_time % 60).toString().padStart(2, '0')} repos</Text>
                   </View>
                 );
               } else {

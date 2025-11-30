@@ -421,7 +421,7 @@ export default function CreateRoutineScreen({ navigation }) {
                             😮‍💨 Repos : {item.restDuration}s
                           </Text>
                           <Text className="text-white text-sm">
-                            🔁 Tours : {item.rounds}
+                            🔁 Séries : {item.rounds}
                           </Text>
                         </>
                       )}
@@ -453,7 +453,7 @@ export default function CreateRoutineScreen({ navigation }) {
                             {supersetInfo.emoji} {supersetInfo.name} {index + 1}
                           </Text>
                           <Text className="text-gray-400 text-sm">
-                            {item.exercises.length} exercices • {item.rounds} tours
+                            {item.exercises.length} exercices • {item.rounds} séries
                           </Text>
                         </View>
                       </View>
@@ -500,7 +500,7 @@ export default function CreateRoutineScreen({ navigation }) {
 
                     <View className={`mt-3 pt-3 border-t ${supersetInfo.borderColor}/30`}>
                       <Text className="text-gray-400 text-xs text-center">
-                        ⚡ Enchaînement direct • 💤 {Math.floor(item.rest_time / 60)}:{(item.rest_time % 60).toString().padStart(2, '0')} entre tours
+                        ⚡ Enchaînement direct • 💤 {Math.floor(item.rest_time / 60)}:{(item.rest_time % 60).toString().padStart(2, '0')} entre séries
                       </Text>
                     </View>
                   </View>
@@ -522,7 +522,7 @@ export default function CreateRoutineScreen({ navigation }) {
                             🔻 DROP SET {index + 1}
                           </Text>
                           <Text className="text-gray-400 text-sm">
-                            {item.exercise.name} • {item.drops} drops • {item.rounds} tours
+                            {item.exercise.name} • {item.drops} drops • {item.rounds} séries
                           </Text>
                         </View>
                       </View>
@@ -565,7 +565,7 @@ export default function CreateRoutineScreen({ navigation }) {
 
                     <View className="mt-3 pt-3 border-t border-amber-500/30">
                       <Text className="text-gray-400 text-xs text-center">
-                        ⚡ {item.drops} drops sans repos • 💤 {Math.floor(item.rest_time / 60)}:{(item.rest_time % 60).toString().padStart(2, '0')} entre tours
+                        ⚡ {item.drops} drops sans repos • 💤 {Math.floor(item.rest_time / 60)}:{(item.rest_time % 60).toString().padStart(2, '0')} entre séries
                       </Text>
                     </View>
                   </View>

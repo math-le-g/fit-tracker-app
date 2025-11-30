@@ -13,7 +13,7 @@ import SessionTimer from '../components/SessionTimer';
 import { useSession } from '../context/SessionContext';
 
 export default function WorkoutSessionScreen({ route, navigation }) {
-  const { exercises: initialExercises, routineName, skipWarmup } = route.params;
+  const { exercises: initialExercises, routineName, routineId, skipWarmup, actualWarmupSeconds } = route.params;
 
   const [exercises, setExercises] = useState(initialExercises);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
@@ -25,7 +25,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   const [currentSupersetExerciseIndex, setCurrentSupersetExerciseIndex] = useState(0);
   const [supersetCompletedSets, setSupersetCompletedSets] = useState({});
 
-  // 🆕 ÉTATS POUR LES DROP SETS
+  // ÉTATS POUR LES DROP SETS
   const [currentDropsetId, setCurrentDropsetId] = useState(null);
   const [currentDropRound, setCurrentDropRound] = useState(1);
   const [currentDropIndex, setCurrentDropIndex] = useState(0);
@@ -48,7 +48,7 @@ export default function WorkoutSessionScreen({ route, navigation }) {
   const currentItem = exercises[currentExerciseIndex];
   const isSuperset = currentItem?.type === 'superset';
   const isDropset = currentItem?.type === 'dropset';
-  const isTimed = currentItem?.type === 'timed'; // 🆕
+  const isTimed = currentItem?.type === 'timed';
 
   // RÉCUPÉRER L'EXERCICE ACTUEL
   const currentExercise = isSuperset
@@ -56,15 +56,16 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     : isDropset
       ? currentItem.exercise
       : isTimed
-        ? currentItem.exercise  // 🆕
+        ? currentItem.exercise
         : currentItem;
 
   useEffect(() => {
     if (skipWarmup && !workoutStartTime) {
       setWorkoutStartTime(Date.now());
-      setWarmupDuration(0);
+      const warmupTime = actualWarmupSeconds || 0;  // ✅ Utiliser le temps réel d'échauffement
+      setWarmupDuration(warmupTime);
       startSession();
-      initWorkout();
+      initWorkout(warmupTime);  // ✅ Passer le temps réel
     }
   }, [skipWarmup]);
 
@@ -185,22 +186,23 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     setCurrentPhase('warmup-timer');
   };
 
-  const completeWarmup = (duration) => {
+  const completeWarmup = async (duration) => {
     setWarmupDuration(duration);
-    setCurrentPhase('exercise');
+    startSession();  // ✅ Démarrer la session
     if (!workoutId) {
-      initWorkout();
+      await initWorkout(duration);  // ✅ Attendre que le workout soit créé
     }
+    setCurrentPhase('exercise');    // ✅ Changer la phase APRÈS
   };
 
-  const initWorkout = async () => {
+  const initWorkout = async (warmupDur = 0) => {
     try {
       const result = await db.runAsync(
-        'INSERT INTO workouts (date, type, warmup_duration, workout_duration) VALUES (?, ?, ?, ?)',
-        [new Date().toISOString(), 'musculation', warmupDuration || 0, 0]
+        'INSERT INTO workouts (date, type, warmup_duration, workout_duration, routine_id) VALUES (?, ?, ?, ?, ?)',
+        [new Date().toISOString(), 'musculation', warmupDur, 0, routineId || null]  // ✅ Utiliser le paramètre
       );
       setWorkoutId(result.lastInsertRowId);
-      console.log('✅ Workout initié avec ID:', result.lastInsertRowId);
+      console.log('✅ Workout initié avec ID:', result.lastInsertRowId, '- Routine ID:', routineId, '- Échauffement:', warmupDur, 's');
     } catch (error) {
       console.error('❌ Erreur init workout:', error);
     }
@@ -239,7 +241,6 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     }
   };
 
-  // 🆕 FONCTION MODIFIÉE POUR GÉRER SUPERSETS ET DROP SETS
   const completeSet = async (weight, reps) => {
     try {
       if (!currentExercise) {
@@ -249,11 +250,10 @@ export default function WorkoutSessionScreen({ route, navigation }) {
 
       if (!workoutId) {
         console.log('⚠️ Workout pas encore initialisé, initialisation...');
-        await initWorkout();
+        await initWorkout(warmupDuration);  // ✅ Passer la durée d'échauffement
         return;
       }
 
-      // GÉNÉRER UN ID UNIQUE SI SUPERSET OU DROP SET
       let supersetId = null;
       let dropsetId = null;
 
@@ -273,60 +273,51 @@ export default function WorkoutSessionScreen({ route, navigation }) {
         }
       }
 
-      // 🆕 CALCULER LE BON NUMÉRO DE SÉRIE
+      // 🆕 CORRECTION : set_number = numéro du drop (1, 2, 3), pas un compteur global
+      // Pour les dropsets: currentDropIndex va de 0 à (drops-1), donc +1 pour avoir 1, 2, 3
+      // Ça permet de grouper par série : quand set_number revient à 1 = nouvelle série
       let setNumber;
       if (isDropset) {
-        // Pour les drop sets : utiliser la longueur du tableau + 1
-        setNumber = dropsetCompletedSets.length + 1;
+        setNumber = currentDropIndex + 1; // 🔥 Numéro du drop (1, 2, 3), pas compteur global
       } else if (isSuperset) {
-        // Pour les supersets : utiliser la longueur du tableau de cet exercice + 1
         setNumber = (supersetCompletedSets[currentExercise.id] || []).length + 1;
       } else {
-        // Exercice normal
         setNumber = currentSetIndex + 1;
       }
 
-      // Enregistrer la série en BDD
       await db.runAsync(
         'INSERT INTO sets (workout_id, exercise_id, set_number, weight, reps, superset_id, dropset_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [workoutId, currentExercise.id, setNumber, weight, reps, supersetId, dropsetId]
       );
 
-      // Mettre à jour les stats
       setTotalVolume(prev => prev + (weight * reps));
       setTotalSets(prev => prev + 1);
 
       // 🔻 LOGIQUE DROP SET
       if (isDropset) {
-        // 🆕 AJOUTER LE NUMÉRO DE TOUR
         const newDropSets = [...dropsetCompletedSets, {
           weight,
           reps,
           dropIndex: currentDropIndex,
-          round: currentDropRound  // 🔥 AJOUTER LE TOUR !
+          round: currentDropRound
         }];
         setDropsetCompletedSets(newDropSets);
 
         const isLastDrop = currentDropIndex === currentItem.drops - 1;
 
         if (isLastDrop) {
-          // Fin d'un tour du drop set
           const isLastRound = currentDropRound === currentItem.rounds;
 
           if (isLastRound) {
-            // 🎉 DROP SET TERMINÉ
             console.log('🎉 Drop set terminé !');
             completeDropsetExercise(newDropSets);
           } else {
-            // 🔁 REPOS entre les tours
             console.log(`💤 Repos entre tours (${currentDropRound}/${currentItem.rounds})`);
             setCurrentPhase('rest');
           }
         } else {
-          // ➡️ PROCHAIN DROP (SANS REPOS)
           console.log(`🔻 Drop suivant (${currentDropIndex + 1}/${currentItem.drops})`);
           setCurrentDropIndex(currentDropIndex + 1);
-          // Rester en phase 'exercise'
         }
       }
       // 🔥 LOGIQUE SUPERSET
@@ -373,7 +364,6 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     }
   };
 
-  // 🆕 FONCTION POUR TERMINER UN DROP SET
   const completeDropsetExercise = (dropSets) => {
     console.log('✅ Drop set complété:', dropSets);
 
@@ -383,7 +373,6 @@ export default function WorkoutSessionScreen({ route, navigation }) {
       isDropset: true
     }]);
 
-    // ❌ NE PAS VIDER ICI, juste changer de phase !
     if (currentExerciseIndex < exercises.length - 1) {
       setCurrentPhase('transition');
     } else {
@@ -391,12 +380,10 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     }
   };
 
-  // 🆕 FONCTION POUR TERMINER UN EXERCICE CHRONOMÉTRÉ
   const completeTimedExercise = async (durationCompleted) => {
     try {
       console.log(`✅ Exercice chronométré complété: ${durationCompleted}s`);
 
-      // Sauvegarder dans la table sets avec weight=0 et reps=durée
       await db.runAsync(
         'INSERT INTO sets (workout_id, exercise_id, set_number, weight, reps, superset_id, dropset_id, is_timed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         [workoutId, currentExercise.id, 1, 0, durationCompleted, null, null, 1]
@@ -420,7 +407,6 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     }
   };
 
-  // FONCTION POUR TERMINER UN SUPERSET
   const completeSupersetExercise = (supersetSets) => {
     console.log('✅ Superset complété:', supersetSets);
 
@@ -430,8 +416,6 @@ export default function WorkoutSessionScreen({ route, navigation }) {
       isSuperset: true
     }]);
 
-    //  NE PAS RESET ICI - on le fait dans startNextExercise
-
     if (currentExerciseIndex < exercises.length - 1) {
       setCurrentPhase('transition');
     } else {
@@ -439,7 +423,6 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     }
   };
 
-  // FONCTION POUR LES EXERCICES NORMAUX
   const completeExercise = (exerciseSets) => {
     setAllCompletedExercises([...allCompletedExercises, {
       exercise: currentExercise,
@@ -458,13 +441,11 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     setCurrentSetIndex(0);
     setCompletedSets([]);
 
-    // Reset des états
     setCurrentSupersetRound(1);
     setCurrentSupersetExerciseIndex(0);
     setSupersetCompletedSets({});
     setCurrentSupersetId(null);
 
-    // 🆕 VIDER ICI APRÈS LA TRANSITION
     setCurrentDropRound(1);
     setCurrentDropIndex(0);
     setDropsetCompletedSets([]);
@@ -474,7 +455,6 @@ export default function WorkoutSessionScreen({ route, navigation }) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
-  // 🆕 FONCTION MODIFIÉE POUR GÉRER LE REPOS DANS LES SUPERSETS ET DROP SETS
   const finishRest = () => {
     if (isSuperset) {
       setCurrentSupersetRound(currentSupersetRound + 1);
@@ -606,11 +586,9 @@ export default function WorkoutSessionScreen({ route, navigation }) {
       break;
 
     case 'exercise':
-      // 🆕 AFFICHER TimedExerciseScreen SI EXERCICE CHRONOMÉTRÉ
       if (isTimed) {
         content = (
           <View className="flex-1 bg-primary-dark">
-
             <TouchableOpacity
               className="absolute top-4 right-4 z-10 bg-danger/20 rounded-full p-3"
               onPress={handleQuitSession}
@@ -632,7 +610,6 @@ export default function WorkoutSessionScreen({ route, navigation }) {
           </View>
         );
       } else {
-        // Exercice normal, superset ou dropset
         content = (
           <ExerciseScreen
             exercise={currentExercise}
@@ -645,19 +622,22 @@ export default function WorkoutSessionScreen({ route, navigation }) {
             onManageExercises={handleManageExercises}
             navigation={navigation}
             onQuitSession={handleQuitSession}
-            // PROPS SUPERSETS
+            routineId={routineId}
             isSuperset={isSuperset}
             supersetRound={isSuperset ? currentSupersetRound : null}
             supersetTotalRounds={isSuperset ? currentItem.rounds : null}
             supersetExerciseIndex={isSuperset ? currentSupersetExerciseIndex : null}
             supersetTotalExercises={isSuperset ? currentItem.exercises.length : null}
             supersetName={isSuperset ? `Superset ${currentExerciseIndex + 1}` : null}
-            // PROPS DROP SETS
+            supersetExercises={isSuperset ? currentItem.exercises : null}
+            allSupersetSets={isSuperset ? supersetCompletedSets : null}
             isDropset={isDropset}
             dropRound={isDropset ? currentDropRound : null}
             dropTotalRounds={isDropset ? currentItem.rounds : null}
             dropIndex={isDropset ? currentDropIndex : null}
             dropTotalDrops={isDropset ? currentItem.drops : null}
+            allDropsetSets={isDropset ? dropsetCompletedSets : null}
+            dropsetExerciseName={isDropset ? currentItem.exercise.name : null}
           />
         );
       }
@@ -672,9 +652,9 @@ export default function WorkoutSessionScreen({ route, navigation }) {
           totalSets={isSuperset || isDropset ? null : currentExercise.sets}
           exerciseName={
             isSuperset
-              ? `Superset - Tour ${currentSupersetRound + 1}/${currentItem.rounds}`
+              ? `Superset - Série ${currentSupersetRound + 1}/${currentItem.rounds}`
               : isDropset
-                ? `Drop Set - Tour ${currentDropRound + 1}/${currentItem.rounds}`
+                ? `Drop Set - Série ${currentDropRound + 1}/${currentItem.rounds}`
                 : currentExercise.name
           }
           navigation={navigation}
@@ -682,7 +662,6 @@ export default function WorkoutSessionScreen({ route, navigation }) {
           isSuperset={isSuperset}
           supersetRound={isSuperset ? currentSupersetRound : null}
           supersetTotalRounds={isSuperset ? currentItem.rounds : null}
-          // 🆕 INFO DROP SET
           isDropset={isDropset}
           dropRound={isDropset ? currentDropRound : null}
           dropTotalRounds={isDropset ? currentItem.rounds : null}

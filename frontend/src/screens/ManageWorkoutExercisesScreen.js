@@ -339,9 +339,9 @@ export default function ManageWorkoutExercisesScreen({ route, navigation }) {
 
                       <Text className="text-gray-400 text-xs mt-1">
                         {isSuperset
-                          ? `${ex.exercises.length} exercices • ${ex.rounds} tours • ${Math.floor(ex.rest_time / 60)}:${(ex.rest_time % 60).toString().padStart(2, '0')} repos`
+                          ? `${ex.exercises.length} exercices • ${ex.rounds} séries • ${Math.floor(ex.rest_time / 60)}:${(ex.rest_time % 60).toString().padStart(2, '0')} repos`
                           : ex.type === 'dropset'
-                            ? `${ex.drops || 0} drops • ${ex.rounds || 0} tours • ${Math.floor((ex.rest_time || 0) / 60)}:${((ex.rest_time || 0) % 60).toString().padStart(2, '0')} repos`
+                            ? `${ex.drops || 0} drops • ${ex.rounds || 0} séries • ${Math.floor((ex.rest_time || 0) / 60)}:${((ex.rest_time || 0) % 60).toString().padStart(2, '0')} repos`
                             : ex.type === 'timed'
                               ? ex.mode === 'simple'
                                 ? `⏱️ ${Math.floor((ex.duration || 0) / 60)} min`

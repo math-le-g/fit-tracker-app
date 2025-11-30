@@ -10,14 +10,15 @@ export default function WarmupScreen({ route, navigation }) {
   const { routineId, warmupDuration, exercises } = route.params;
   const [timeLeft, setTimeLeft] = useState(warmupDuration * 60);
   const [isPaused, setIsPaused] = useState(false);
-  const [totalSessionTime, setTotalSessionTime] = useState(0); // 🆕 TIMER INDÉPENDANT
+  const [totalSessionTime, setTotalSessionTime] = useState(0);
+  const [startTime] = useState(Date.now());  // ✅ Timestamp de début pour calculer le temps RÉEL
   const { startSession, formattedTime, endSession } = useSession();
 
   // États pour le modal
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState({});
 
-  // 🆕 Ref pour stocker le unsubscribe
+  // Ref pour stocker le unsubscribe
   const [navigationListener, setNavigationListener] = useState(null);
 
   // Timer
@@ -44,7 +45,7 @@ export default function WarmupScreen({ route, navigation }) {
     startSession(); // Démarrer le timer global
   }, []);
 
-  // 🆕 BLOQUER LE RETOUR ARRIÈRE
+  // BLOQUER LE RETOUR ARRIÈRE
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
       // Empêcher la navigation par défaut
@@ -89,11 +90,15 @@ export default function WarmupScreen({ route, navigation }) {
       navigationListener();
     }
 
+    // ✅ Calculer le temps RÉEL écoulé depuis le début
+    const actualWarmupSeconds = Math.floor((Date.now() - startTime) / 1000);
+
     navigation.replace('WarmupTransition', {
       routineId,
       exercises,
       warmupDuration,
-      lastWorkoutDuration: route.params.lastWorkoutDuration || null  // 🆕
+      actualWarmupSeconds,  // ✅ Temps réel écoulé en secondes
+      lastWorkoutDuration: route.params.lastWorkoutDuration || null
     });
   };
 
@@ -113,7 +118,7 @@ export default function WarmupScreen({ route, navigation }) {
     return (timeLeft / totalSeconds) * 100;
   };
 
-  // 🆕 FONCTION POUR QUITTER LA SÉANCE (BOUTON CROIX ROUGE)
+  // FONCTION POUR QUITTER LA SÉANCE (BOUTON CROIX ROUGE)
   const handleQuitSession = () => {
     setModalConfig({
       title: '🚪 Quitter la séance ?',
@@ -132,7 +137,7 @@ export default function WarmupScreen({ route, navigation }) {
           text: 'Quitter',
           style: 'destructive',
           onPress: () => {
-            // 🆕 RETIRER LE LISTENER AVANT DE NAVIGUER
+            // RETIRER LE LISTENER AVANT DE NAVIGUER
             if (navigationListener) {
               navigationListener();
             }
@@ -149,7 +154,7 @@ export default function WarmupScreen({ route, navigation }) {
   return (
     <View className="flex-1 bg-primary-dark">
       <SessionTimer />
-      {/* 🆕 BOUTON QUITTER EN HAUT À DROITE */}
+      {/* BOUTON QUITTER EN HAUT À DROITE */}
       <View className="absolute top-4 right-4 z-50">
         <TouchableOpacity
           className="bg-danger/20 rounded-full p-2"
@@ -231,7 +236,7 @@ export default function WarmupScreen({ route, navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* 🆕 MODAL DE CONFIRMATION */}
+      {/* MODAL DE CONFIRMATION */}
       <CustomModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}

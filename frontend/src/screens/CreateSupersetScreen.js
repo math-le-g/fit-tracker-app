@@ -116,7 +116,7 @@ export default function CreateSupersetScreen({ route, navigation }) {
                                     • Enchaîne {selectedExercises.length || 'plusieurs'} exercices SANS repos
                                 </Text>
                                 <Text className="text-gray-400 text-sm mb-2">
-                                    • Repos uniquement entre les tours
+                                    • Repos uniquement entre les séries
                                 </Text>
                                 <Text className="text-gray-400 text-sm">
                                     • Intensité maximale, gain de temps 💪
@@ -249,9 +249,9 @@ export default function CreateSupersetScreen({ route, navigation }) {
                         })}
                     </View>
 
-                    {/* Configuration des tours */}
+                    {/* Configuration des séries */}
                     <View className="mb-4">
-                        <Text className="text-white text-lg font-bold mb-3">NOMBRE DE TOURS</Text>
+                        <Text className="text-white text-lg font-bold mb-3">NOMBRE DE SERIES</Text>
                         <View className="flex-row items-center gap-3">
                             <TouchableOpacity
                                 className="bg-primary-navy rounded-xl p-4"
@@ -281,10 +281,10 @@ export default function CreateSupersetScreen({ route, navigation }) {
                         </View>
                     </View>
 
-                    {/* Temps de repos entre les tours */}
+                    {/* Temps de repos entre les séries */}
                     <View className="mb-4">
                         <Text className="text-white text-lg font-bold mb-3">
-                            REPOS ENTRE LES TOURS
+                            REPOS ENTRE LES SERIES
                         </Text>
                         <View className="flex-row items-center gap-2">
                             {/* Minutes */}
@@ -372,10 +372,10 @@ export default function CreateSupersetScreen({ route, navigation }) {
                             • {selectedExercises.length} exercice{selectedExercises.length > 1 ? 's' : ''} enchaîné{selectedExercises.length > 1 ? 's' : ''}
                         </Text>
                         <Text className="text-gray-400 text-sm mb-1">
-                            • {rounds} tour{rounds > 1 ? 's' : ''} au total
+                            • {rounds} série{rounds > 1 ? 's' : ''} au total
                         </Text>
                         <Text className="text-gray-400 text-sm">
-                            • {restMinutes}:{restSeconds.toString().padStart(2, '0')} de repos entre les tours
+                            • {restMinutes}:{restSeconds.toString().padStart(2, '0')} de repos entre les séries
                         </Text>
                     </View>
 

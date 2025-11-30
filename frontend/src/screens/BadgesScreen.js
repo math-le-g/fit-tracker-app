@@ -53,7 +53,7 @@ export default function BadgesScreen() {
       case 'volume':  return 'Volume';
       case 'progress':return 'Progression';
       case 'level':   return 'Niveau';
-      default:        return String(category || '');
+      default:        return 'Autres';
     }
   };
 
@@ -86,7 +86,7 @@ export default function BadgesScreen() {
               <View>
                 <Text style={{ color: '#a8a8a0', fontSize: 14 }}>PROGRESSION</Text>
                 <Text style={{ color: '#f5f5f0', fontSize: 32, fontWeight: 'bold' }}>
-                  {stats.unlocked}/{stats.total}
+                  {`${stats.unlocked}/${stats.total}`}
                 </Text>
               </View>
 
@@ -102,7 +102,7 @@ export default function BadgesScreen() {
                   borderColor: '#d4af37'
                 }}>
                   <Text style={{ color: '#d4af37', fontSize: 24, fontWeight: 'bold' }}>
-                    {stats.percentage}%
+                    {`${stats.percentage}%`}
                   </Text>
                 </View>
               </View>
@@ -154,89 +154,99 @@ export default function BadgesScreen() {
           {Object.entries(groupedBadges).map(([category, categoryBadges]) => (
             <View key={category} style={{ marginBottom: 20 }}>
               <Text style={{ color: '#f5f5f0', fontSize: 18, fontWeight: 'bold', marginBottom: 12 }}>
-                {getCategoryEmoji(category)} {getCategoryText(category)}
+                {`${getCategoryEmoji(category)} ${getCategoryText(category)}`}
               </Text>
 
-              {categoryBadges.map((badge) => (
-                <View
-                  key={badge.id}
-                  style={{
-                    backgroundColor: badge.unlocked 
-                      ? 'rgba(0, 245, 255, 0.1)' 
-                      : 'rgba(255, 255, 255, 0.05)',
-                    borderRadius: 16,
-                    padding: 16,
-                    marginBottom: 12,
-                    borderWidth: 1,
-                    borderColor: badge.unlocked 
-                      ? 'rgba(0, 245, 255, 0.3)' 
-                      : 'rgba(255, 255, 255, 0.1)',
-                    opacity: badge.unlocked ? 1 : 0.6
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <View style={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: 28,
-                      backgroundColor: badge.unlocked ? '#00f5ff' : 'rgba(10, 14, 39, 0.8)',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      <Text style={{ fontSize: 32 }}>{badge.icon || '🏅'}</Text>
-                    </View>
+              {categoryBadges.map((badge) => {
+                // Sécuriser toutes les valeurs
+                const badgeIcon = badge.icon || '🏅';
+                const badgeName = badge.name || 'Badge';
+                const badgeDescription = badge.description || '';
+                const badgeProgress = badge.progress || 0;
+                const badgeTarget = badge.target || 1;
+                const progressPercent = Math.min((badgeProgress / badgeTarget) * 100, 100);
 
-                    <View style={{ flex: 1, marginLeft: 16 }}>
-                      <Text style={{
-                        fontSize: 16,
-                        fontWeight: 'bold',
-                        color: badge.unlocked ? '#f5f5f0' : '#6b7280',
-                        marginBottom: 4
+                return (
+                  <View
+                    key={badge.id}
+                    style={{
+                      backgroundColor: badge.unlocked 
+                        ? 'rgba(0, 245, 255, 0.1)' 
+                        : 'rgba(255, 255, 255, 0.05)',
+                      borderRadius: 16,
+                      padding: 16,
+                      marginBottom: 12,
+                      borderWidth: 1,
+                      borderColor: badge.unlocked 
+                        ? 'rgba(0, 245, 255, 0.3)' 
+                        : 'rgba(255, 255, 255, 0.1)',
+                      opacity: badge.unlocked ? 1 : 0.6
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <View style={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: 28,
+                        backgroundColor: badge.unlocked ? '#00f5ff' : 'rgba(10, 14, 39, 0.8)',
+                        alignItems: 'center',
+                        justifyContent: 'center'
                       }}>
-                        {badge.name || ''}
-                      </Text>
+                        <Text style={{ fontSize: 32 }}>{badgeIcon}</Text>
+                      </View>
 
-                      <Text style={{ color: '#a8a8a0', fontSize: 14, marginBottom: 8 }}>
-                        {badge.description || ''}
-                      </Text>
-
-                      {!badge.unlocked && (
-                        <View>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                            <Text style={{ color: '#a8a8a0', fontSize: 12 }}>
-                              {badge.progress}/{badge.target}
-                            </Text>
-                          </View>
-                          <View style={{
-                            backgroundColor: 'rgba(10, 14, 39, 0.8)',
-                            borderRadius: 4,
-                            height: 8,
-                            overflow: 'hidden'
-                          }}>
-                            <View
-                              style={{
-                                backgroundColor: '#6b7280',
-                                height: '100%',
-                                width: `${Math.min((badge.progress / badge.target) * 100, 100)}%`
-                              }}
-                            />
-                          </View>
-                        </View>
-                      )}
-
-                      {badge.unlocked && badge.unlocked_at && (
-                        <Text style={{ color: '#00f5ff', fontSize: 12 }}>
-                          ✓ Débloqué le {new Date(badge.unlocked_at).toLocaleDateString()}
+                      <View style={{ flex: 1, marginLeft: 16 }}>
+                        <Text style={{
+                          fontSize: 16,
+                          fontWeight: 'bold',
+                          color: badge.unlocked ? '#f5f5f0' : '#6b7280',
+                          marginBottom: 4
+                        }}>
+                          {badgeName}
                         </Text>
-                      )}
-                    </View>
 
-                    {badge.unlocked && (
-                      <Ionicons name="checkmark-circle" size={28} color="#00f5ff" />
-                    )}
+                        <Text style={{ color: '#a8a8a0', fontSize: 14, marginBottom: 8 }}>
+                          {badgeDescription}
+                        </Text>
+
+                        {!badge.unlocked && (
+                          <View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                              <Text style={{ color: '#a8a8a0', fontSize: 12 }}>
+                                {`${badgeProgress}/${badgeTarget}`}
+                              </Text>
+                            </View>
+                            <View style={{
+                              backgroundColor: 'rgba(10, 14, 39, 0.8)',
+                              borderRadius: 4,
+                              height: 8,
+                              overflow: 'hidden'
+                            }}>
+                              <View
+                                style={{
+                                  backgroundColor: '#6b7280',
+                                  height: '100%',
+                                  width: `${progressPercent}%`
+                                }}
+                              />
+                            </View>
+                          </View>
+                        )}
+
+                        {badge.unlocked && badge.unlocked_at ? (
+                          <Text style={{ color: '#00f5ff', fontSize: 12 }}>
+                            {`✓ Débloqué le ${new Date(badge.unlocked_at).toLocaleDateString()}`}
+                          </Text>
+                        ) : null}
+                      </View>
+
+                      {badge.unlocked ? (
+                        <Ionicons name="checkmark-circle" size={28} color="#00f5ff" />
+                      ) : null}
+                    </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
           ))}
 
